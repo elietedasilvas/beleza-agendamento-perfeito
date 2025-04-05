@@ -5,6 +5,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { PanelLeft } from "lucide-react";
 import { useSidebar } from "@/components/ui/sidebar";
+import { Toaster } from "@/components/ui/toaster";
 
 // Create a conditional sidebar toggle button that appears when sidebar is collapsed
 const FloatingToggleButton = () => {
@@ -34,6 +35,7 @@ const AdminLayout = () => {
         <main className="flex-grow p-6">
           <Outlet />
         </main>
+        <Toaster />
       </div>
     </SidebarProvider>
   );

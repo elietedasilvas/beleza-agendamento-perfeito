@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Table, 
   TableBody, 
@@ -36,13 +35,21 @@ import {
   services, 
   Professional 
 } from "@/data/mockData";
+import { useToast } from "@/hooks/use-toast";
 
 const ProfessionalsAdmin = () => {
+  const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
   const [editingProfessional, setEditingProfessional] = useState<Professional | null>(null);
-  const [professionalsList, setProfessionalsList] = useState(professionals);
+  const [professionalsList, setProfessionalsList] = useState<Professional[]>(
+    window.updatedProfessionals || professionals
+  );
   const [selectedProfessionalForSchedule, setSelectedProfessionalForSchedule] = useState<Professional | null>(null);
+  
+  useEffect(() => {
+    window.updatedProfessionals = professionalsList;
+  }, [professionalsList]);
   
   const form = useForm({
     defaultValues: {
@@ -102,7 +109,6 @@ const ProfessionalsAdmin = () => {
   const onEditSchedule = (professional: Professional) => {
     setSelectedProfessionalForSchedule(professional);
     
-    // Set default values for the schedule form based on the selected professional
     const scheduleDefaults: Record<string, string[]> = {
       Segunda: [],
       Terça: [],
@@ -113,7 +119,6 @@ const ProfessionalsAdmin = () => {
       Domingo: [],
     };
     
-    // Fill with the professional's availability
     Object.keys(professional.availability).forEach(day => {
       scheduleDefaults[day] = professional.availability[day];
     });
@@ -142,13 +147,21 @@ const ProfessionalsAdmin = () => {
     };
     
     if (editingProfessional) {
-      // Update existing professional
       setProfessionalsList(professionalsList.map(p => 
         p.id === editingProfessional.id ? newProfessional : p
       ));
+      
+      toast({
+        title: "Profissional atualizado",
+        description: `${newProfessional.name} foi atualizado com sucesso.`,
+      });
     } else {
-      // Add new professional
       setProfessionalsList([...professionalsList, newProfessional]);
+      
+      toast({
+        title: "Profissional adicionado",
+        description: `${newProfessional.name} foi adicionado com sucesso.`,
+      });
     }
     
     setIsDialogOpen(false);
@@ -159,7 +172,6 @@ const ProfessionalsAdmin = () => {
   const onSubmitSchedule = (data: any) => {
     if (!selectedProfessionalForSchedule) return;
     
-    // Filter out empty days
     const cleanedAvailability: Record<string, string[]> = {};
     
     Object.keys(data).forEach(day => {
@@ -168,7 +180,6 @@ const ProfessionalsAdmin = () => {
       }
     });
     
-    // Update the professional with the new availability
     const updatedProfessional = {
       ...selectedProfessionalForSchedule,
       availability: cleanedAvailability
@@ -178,21 +189,33 @@ const ProfessionalsAdmin = () => {
       p.id === selectedProfessionalForSchedule.id ? updatedProfessional : p
     ));
     
+    toast({
+      title: "Agenda atualizada",
+      description: `A agenda de ${updatedProfessional.name} foi atualizada com sucesso.`,
+    });
+    
     setIsScheduleDialogOpen(false);
     setSelectedProfessionalForSchedule(null);
   };
   
   const onDeleteProfessional = (id: string) => {
+    const professionalToDelete = professionalsList.find(p => p.id === id);
     setProfessionalsList(professionalsList.filter(p => p.id !== id));
+    
+    if (professionalToDelete) {
+      toast({
+        title: "Profissional removido",
+        description: `${professionalToDelete.name} foi removido com sucesso.`,
+        variant: "destructive"
+      });
+    }
   };
   
-  // Time slots for schedule
   const timeSlots = [
     "8:00", "9:00", "10:00", "11:00", "12:00", "13:00", 
     "14:00", "15:00", "16:00", "17:00", "18:00", "19:00"
   ];
   
-  // Days of the week
   const daysOfWeek = [
     "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"
   ];
@@ -321,7 +344,6 @@ const ProfessionalsAdmin = () => {
           </DialogContent>
         </Dialog>
         
-        {/* Schedule Dialog */}
         <Dialog open={isScheduleDialogOpen} onOpenChange={onScheduleOpenChange}>
           <DialogContent className="sm:max-w-[700px]">
             <DialogHeader>

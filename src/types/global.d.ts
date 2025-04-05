@@ -1,8 +1,9 @@
 
-import { Service } from "@/data/mockData";
+import { Service, Professional } from "@/data/mockData";
 
 declare global {
   interface Window {
     updatedServices?: Service[];
+    updatedProfessionals?: Professional[];
   }
 }

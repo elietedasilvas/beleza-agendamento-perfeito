@@ -29,8 +29,8 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
-  professionals,
-  services,
+  professionals as originalProfessionals,
+  services as originalServices,
   getServicesByProfessional,
   formatCurrency,
   formatDuration,
@@ -42,6 +42,9 @@ const BookingPage = () => {
   const { professionalId } = useParams();
   const navigate = useNavigate();
   
+  const professionals = window.updatedProfessionals || originalProfessionals;
+  const services = window.updatedServices || originalServices;
+  
   const [selectedProfessional, setSelectedProfessional] = useState<Professional | null>(
     professionalId ? professionals.find(p => p.id === professionalId) || null : null
   );
@@ -52,12 +55,24 @@ const BookingPage = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [bookingComplete, setBookingComplete] = useState(false);
   
+  const getAvailableProfessionals = (serviceId?: string) => {
+    if (!serviceId) return professionals;
+    return professionals.filter(p => p.services.includes(serviceId));
+  };
+  
+  const getAvailableServices = (professionalId?: string) => {
+    if (!professionalId) return services;
+    const professional = professionals.find(p => p.id === professionalId);
+    if (!professional) return [];
+    return services.filter(service => professional.services.includes(service.id));
+  };
+  
   const availableProfessionals = selectedService
-    ? professionals.filter(p => p.services.includes(selectedService.id))
+    ? getAvailableProfessionals(selectedService.id)
     : professionals;
   
   const availableServices = selectedProfessional
-    ? getServicesByProfessional(selectedProfessional.id)
+    ? getAvailableServices(selectedProfessional.id)
     : services;
   
   useEffect(() => {
