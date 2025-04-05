@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Search, Star, CalendarDays, Scissors, Spa, UserCheck } from "lucide-react";
+import { Search, Star, CalendarDays, Scissors as ScissorsIcon, User, UserCheck } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,10 +48,10 @@ const ProfessionalsPage = () => {
   }, {} as Record<string, typeof services>);
   
   const categoryIcons = {
-    hair: <Scissors className="h-4 w-4" />,
+    hair: <ScissorsIcon className="h-4 w-4" />,
     face: <UserCheck className="h-4 w-4" />,
-    body: <Spa className="h-4 w-4" />,
-    barber: <Scissors className="h-4 w-4" />
+    body: <User className="h-4 w-4" />,
+    barber: <ScissorsIcon className="h-4 w-4" />
   };
   
   const categoryNames = {

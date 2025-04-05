@@ -1,9 +1,8 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, Clock, User, ArrowRight, Info, CheckCircle } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, User, ArrowRight, Info, CheckCircle, ScissorsIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -61,13 +60,11 @@ const BookingPage = () => {
     ? getServicesByProfessional(selectedProfessional.id)
     : services;
   
-  // Update available times when date or professional changes
   useEffect(() => {
     if (date && selectedProfessional) {
       const dayName = format(date, 'EEEE', { locale: ptBR });
       const capitalizedDayName = dayName.charAt(0).toUpperCase() + dayName.slice(1);
       
-      // Get available times for selected date from professional's availability
       const times = selectedProfessional.availability[capitalizedDayName] || [];
       setAvailableTimes(times);
       setSelectedTime(null);
@@ -77,7 +74,6 @@ const BookingPage = () => {
     }
   }, [date, selectedProfessional]);
   
-  // Reset service when professional changes
   useEffect(() => {
     setSelectedService(null);
   }, [selectedProfessional]);
@@ -116,7 +112,6 @@ const BookingPage = () => {
     }
     
     if (currentStep === 3) {
-      // Simulate booking completion
       setBookingComplete(true);
       return;
     }
@@ -141,7 +136,6 @@ const BookingPage = () => {
             Escolha seu profissional, serviço, data e horário para agendar seu atendimento.
           </p>
           
-          {/* Stepper */}
           <div className="flex justify-center items-center mt-8 mb-10">
             <div className="flex items-center">
               <div className={`rounded-full h-10 w-10 flex items-center justify-center ${
@@ -299,7 +293,6 @@ const BookingPage = () => {
                           initialFocus
                           className={cn("p-3 pointer-events-auto")}
                           disabled={(date) => {
-                            // Disable past dates and weekends if needed
                             const today = new Date();
                             today.setHours(0, 0, 0, 0);
                             
@@ -364,7 +357,7 @@ const BookingPage = () => {
                       </div>
                       
                       <div className="flex items-start gap-3">
-                        <Scissors className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                        <ScissorsIcon className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
                         <div>
                           <p className="text-sm text-muted-foreground">Serviço</p>
                           <p className="font-medium">{selectedService?.name}</p>
