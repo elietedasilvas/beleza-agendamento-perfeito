@@ -36,13 +36,21 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
-import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
-import { services, formatCurrency, formatDuration, Service } from "@/data/mockData";
+import { Plus, Pencil, Trash2 } from "lucide-react";
+import { services as originalServices, formatCurrency, formatDuration, Service } from "@/data/mockData";
+import { toast } from "sonner";
+
+// Create a global variable to track the updated services
+// In a real application, this would be managed by a global state management solution
+// or saved to a backend database
+if (!window.updatedServices) {
+  window.updatedServices = [...originalServices];
+}
 
 const ServicesAdmin = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
-  const [servicesList, setServicesList] = useState(services);
+  const [servicesList, setServicesList] = useState(window.updatedServices);
   
   const form = useForm({
     defaultValues: {
@@ -94,15 +102,22 @@ const ServicesAdmin = () => {
       image: data.image
     };
     
+    let updatedList;
     if (editingService) {
       // Update existing service
-      setServicesList(servicesList.map(s => 
+      updatedList = servicesList.map(s => 
         s.id === editingService.id ? newService : s
-      ));
+      );
+      toast.success("Serviço atualizado com sucesso!");
     } else {
       // Add new service
-      setServicesList([...servicesList, newService]);
+      updatedList = [...servicesList, newService];
+      toast.success("Novo serviço adicionado com sucesso!");
     }
+    
+    setServicesList(updatedList);
+    // Update the global variable
+    window.updatedServices = updatedList;
     
     setIsDialogOpen(false);
     setEditingService(null);
@@ -110,7 +125,11 @@ const ServicesAdmin = () => {
   };
   
   const onDeleteService = (id: string) => {
-    setServicesList(servicesList.filter(s => s.id !== id));
+    const updatedList = servicesList.filter(s => s.id !== id);
+    setServicesList(updatedList);
+    // Update the global variable
+    window.updatedServices = updatedList;
+    toast.success("Serviço removido com sucesso!");
   };
   
   const categoryNames = {
@@ -299,3 +318,4 @@ const ServicesAdmin = () => {
 };
 
 export default ServicesAdmin;
+

@@ -1,11 +1,14 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight, Star, Clock, CalendarDays, BadgeCheck, Scissors } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { services, professionals, formatCurrency, formatDuration } from "@/data/mockData";
+import { services as originalServices, professionals, formatCurrency, formatDuration } from "@/data/mockData";
+
+const getServices = () => {
+  return window.updatedServices || originalServices;
+};
 
 const HeroSection = () => {
   return (
@@ -55,9 +58,10 @@ const ServiceSection = () => {
   
   const [activeCategory, setActiveCategory] = useState("all");
   
+  const currentServices = getServices();
   const filteredServices = activeCategory === "all" 
-    ? services 
-    : services.filter(service => service.category === activeCategory);
+    ? currentServices 
+    : currentServices.filter(service => service.category === activeCategory);
   
   return (
     <section className="py-16 bg-beauty-light/50">
