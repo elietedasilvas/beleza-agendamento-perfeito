@@ -54,10 +54,24 @@ const ReviewsAdminPage = () => {
       const { data, error } = await supabase
         .from("reviews")
         .select(`
-          *,
+          id,
+          rating,
+          comment,
+          status,
+          created_at,
+          updated_at,
+          client_id,
+          professional_id,
+          appointment_id,
           appointment:appointment_id(service:service_id(name))
         `)
         .order("created_at", { ascending: false });
+
+      // Garantir que todas as avaliações tenham um status definido
+      const reviewsWithStatus = data?.map((review: any) => ({
+        ...review,
+        status: review.status || "pending"
+      })) || [];
 
       if (error) throw error;
 
@@ -81,7 +95,7 @@ const ReviewsAdminPage = () => {
       });
 
       // Formatar os dados
-      const formattedReviews = data.map((review: any) => ({
+      const formattedReviews = reviewsWithStatus.map((review: any) => ({
         ...review,
         client: {
           name: userNamesMap[review.client_id] || "Cliente",
@@ -96,6 +110,7 @@ const ReviewsAdminPage = () => {
         },
       }));
 
+      console.log('Avaliações formatadas:', formattedReviews);
       setReviews(formattedReviews);
     } catch (error: any) {
       console.error("Erro ao buscar avaliações:", error);
@@ -183,7 +198,8 @@ const ReviewsAdminPage = () => {
   );
 
   // Renderizar tabela de avaliações
-  const renderReviewsTable = (reviewsList: Review[]) => (
+  const renderReviewsTable = (reviewsList: Review[]) => {
+    return (
     <Table>
       <TableHeader>
         <TableRow>
@@ -237,28 +253,29 @@ const ReviewsAdminPage = () => {
                 </Badge>
               </TableCell>
               <TableCell>
-                {review.status === "pending" && (
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-green-600"
-                      onClick={() => handleApproveReview(review.id)}
-                    >
-                      <CheckCircle className="h-4 w-4 mr-1" />
-                      Aprovar
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-red-600"
-                      onClick={() => handleRejectReview(review.id)}
-                    >
-                      <XCircle className="h-4 w-4 mr-1" />
-                      Rejeitar
-                    </Button>
-                  </div>
-                )}
+                <div className="flex gap-2">
+                  {/* Mostrar botões de ação para todas as avaliações */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-green-600"
+                    onClick={() => handleApproveReview(review.id)}
+                    disabled={review.status === "approved"}
+                  >
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    Aprovar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-red-600"
+                    onClick={() => handleRejectReview(review.id)}
+                    disabled={review.status === "rejected"}
+                  >
+                    <XCircle className="h-4 w-4 mr-1" />
+                    Rejeitar
+                  </Button>
+                </div>
               </TableCell>
             </TableRow>
           ))
@@ -266,6 +283,7 @@ const ReviewsAdminPage = () => {
       </TableBody>
     </Table>
   );
+  };
 
   return (
     <div className="container py-8">
