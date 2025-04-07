@@ -1,8 +1,9 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, Clock, User, ArrowRight, Info, CheckCircle, ScissorsIcon } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, User, ArrowRight, Info, CheckCircle, ScissorsIcon, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -36,6 +37,7 @@ import type { Professional, Service } from "@/data/mockData";
 import { supabase } from "@/integrations/supabase/client";
 import { Service as SupabaseService } from "@/types/global.d";
 import { adaptToMockService } from "@/types/service-adapter";
+import { useAuth } from "@/contexts/AuthContext";
 
 const dayNameToNumber = {
   "domingo": 0,
@@ -54,6 +56,7 @@ const formatTimeDisplay = (time: string) => {
 const BookingPage = () => {
   const { professionalId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -279,6 +282,17 @@ const BookingPage = () => {
         });
         return;
       }
+
+      // Verificar se o usuário está autenticado antes de permitir o agendamento
+      if (!user) {
+        toast({
+          title: "Autenticação necessária",
+          description: "Por favor, faça login para confirmar seu agendamento.",
+          variant: "destructive"
+        });
+        navigate("/auth", { state: { from: location.pathname } });
+        return;
+      }
       
       try {
         const dateStr = format(date, 'yyyy-MM-dd');
@@ -293,7 +307,7 @@ const BookingPage = () => {
         const { error } = await supabase
           .from("appointments")
           .insert({
-            client_id: "user-id",
+            client_id: user.id, // Usar o ID do usuário autenticado
             professional_id: selectedProfessional.id,
             service_id: selectedService.id,
             date: dateStr,
@@ -338,6 +352,38 @@ const BookingPage = () => {
   const handleFinish = () => {
     navigate("/");
   };
+
+  const redirectToLogin = () => {
+    navigate("/auth", { state: { from: location.pathname } });
+  };
+  
+  // Bloco para mostrar se o usuário não está autenticado
+  if (!user && currentStep === 3) {
+    return (
+      <div className="container py-8 md:py-12">
+        <div className="max-w-3xl mx-auto">
+          <Card className="beauty-card">
+            <CardHeader className="text-center">
+              <CardTitle>Autenticação Necessária</CardTitle>
+              <CardDescription>
+                Para finalizar seu agendamento, é necessário fazer login ou criar uma conta.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center justify-center py-8">
+              <LogIn className="h-16 w-16 text-beauty-purple mb-4" />
+              <p className="text-center mb-6">
+                Por favor, faça login para continuar com seu agendamento. 
+                Seus dados de agendamento serão mantidos.
+              </p>
+              <Button onClick={redirectToLogin} className="beauty-button">
+                Fazer Login / Cadastrar
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="container py-8 md:py-12">
