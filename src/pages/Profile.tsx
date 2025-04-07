@@ -614,17 +614,16 @@ const ProfilePage = () => {
           </div>
         </div>
       </div>
+      {/* Modal de Avaliação */}
+      {selectedAppointment && (
+        <ReviewModal
+          open={reviewModalOpen}
+          onOpenChange={setReviewModalOpen}
+          appointment={selectedAppointment}
+          onSuccess={handleReviewSuccess}
+        />
+      )}
     </div>
-
-    {/* Modal de Avaliação */}
-    {selectedAppointment && (
-      <ReviewModal
-        open={reviewModalOpen}
-        onOpenChange={setReviewModalOpen}
-        appointment={selectedAppointment}
-        onSuccess={handleReviewSuccess}
-      />
-    )}
   );
 };
 
