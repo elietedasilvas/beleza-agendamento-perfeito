@@ -48,7 +48,7 @@ interface EditProfessionalDialogProps {
   services: Service[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: z.infer<typeof formSchema>) => void;
+  onSubmit: (data: z.infer<typeof formSchema> & { originalServices?: string[] }) => void;
 }
 
 const EditProfessionalDialog = ({
@@ -61,6 +61,7 @@ const EditProfessionalDialog = ({
   const [selectedServices, setSelectedServices] = useState<string[]>(
     professional?.services || []
   );
+  const [originalServices, setOriginalServices] = useState<string[]>([]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -83,16 +84,19 @@ const EditProfessionalDialog = ({
       form.setValue("about", professional.about);
       form.setValue("image", professional.image);
       setSelectedServices(professional.services);
+      setOriginalServices(professional.services);
     } else {
       form.reset();
       setSelectedServices([]);
+      setOriginalServices([]);
     }
   }, [professional, form]);
 
   const handleFormSubmit = (data: z.infer<typeof formSchema>) => {
     // Ensure services is included in the submitted data
     data.services = selectedServices;
-    onSubmit(data);
+    // Also send original services to track changes
+    onSubmit({ ...data, originalServices });
   };
 
   return (
@@ -204,17 +208,11 @@ const EditProfessionalDialog = ({
                                 service.id,
                               ]);
                             } else {
-                              setSelectedServices(
-                                selectedServices.filter(
-                                  (id) => id !== service.id
-                                )
+                              const filteredServices = selectedServices.filter(
+                                (id) => id !== service.id
                               );
-                              form.setValue(
-                                "services",
-                                selectedServices.filter(
-                                  (id) => id !== service.id
-                                )
-                              );
+                              setSelectedServices(filteredServices);
+                              form.setValue("services", filteredServices);
                             }
                           }}
                         />

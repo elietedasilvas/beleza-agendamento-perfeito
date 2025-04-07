@@ -48,10 +48,41 @@ const ProfessionalsAdmin = () => {
   const [isPromoting, setIsPromoting] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [servicesList, setServicesList] = useState<Service[]>(services);
   
   useEffect(() => {
     fetchProfessionals();
+    fetchServices();
   }, []);
+  
+  const fetchServices = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("services")
+        .select("*")
+        .eq("active", true);
+      
+      if (error) throw error;
+      
+      if (data) {
+        // Adaptar os serviços para o formato usado no frontend
+        const adaptedServices = data.map(service => ({
+          id: service.id,
+          name: service.name,
+          description: service.description || "",
+          price: service.price,
+          duration: service.duration,
+          category: (service.category || "all") as "hair" | "face" | "body" | "barber",
+          image: service.image || ""
+        }));
+        
+        setServicesList(adaptedServices);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar serviços:", error);
+      toast.error("Erro ao carregar serviços");
+    }
+  };
   
   const fetchProfessionals = async () => {
     try {
@@ -136,25 +167,94 @@ const ProfessionalsAdmin = () => {
     setIsEditDialogOpen(false);
   };
   
-  const handleSubmit = (data: any) => {
+  const handleSubmit = async (data: any) => {
     if (editingProfessional) {
-      const updatedProfessional = {
-        ...editingProfessional,
-        name: data.name,
-        email: data.email,
-        role: data.role,
-        about: data.about,
-        image: data.image,
-        services: data.services,
-      };
-      
-      setProfessionalsList(
-        professionalsList.map((professional) =>
-          professional.id === editingProfessional.id ? updatedProfessional : professional
-        )
-      );
-      
-      toast.success(`Profissional ${data.name} atualizado com sucesso.`);
+      try {
+        // Atualizar o perfil do profissional
+        const { error: profileError } = await supabase
+          .from("professionals")
+          .update({
+            bio: data.about
+          })
+          .eq("id", editingProfessional.id);
+          
+        if (profileError) throw profileError;
+        
+        // Atualizar nome e papel no perfil geral
+        const { error: userProfileError } = await supabase
+          .from("profiles")
+          .update({
+            name: data.name,
+            role: data.role
+          })
+          .eq("id", editingProfessional.id);
+          
+        if (userProfileError) throw userProfileError;
+        
+        // Gerenciar os serviços do profissional
+        // 1. Identificar novos serviços para adicionar
+        const originalServices = data.originalServices || [];
+        const servicesToAdd = data.services.filter(
+          (serviceId: string) => !originalServices.includes(serviceId)
+        );
+        
+        // 2. Identificar serviços para remover
+        const servicesToRemove = originalServices.filter(
+          (serviceId: string) => !data.services.includes(serviceId)
+        );
+        
+        // 3. Adicionar novos serviços
+        if (servicesToAdd.length > 0) {
+          const servicesToInsert = servicesToAdd.map((serviceId: string) => ({
+            professional_id: editingProfessional.id,
+            service_id: serviceId
+          }));
+          
+          const { error: addServicesError } = await supabase
+            .from("professional_services")
+            .insert(servicesToInsert);
+            
+          if (addServicesError) throw addServicesError;
+        }
+        
+        // 4. Remover serviços desmarcados
+        if (servicesToRemove.length > 0) {
+          for (const serviceId of servicesToRemove) {
+            const { error: removeServiceError } = await supabase
+              .from("professional_services")
+              .delete()
+              .eq("professional_id", editingProfessional.id)
+              .eq("service_id", serviceId);
+              
+            if (removeServiceError) throw removeServiceError;
+          }
+        }
+        
+        // Atualizar a lista local
+        const updatedProfessional = {
+          ...editingProfessional,
+          name: data.name,
+          email: data.email,
+          role: data.role,
+          about: data.about,
+          image: data.image,
+          services: data.services,
+        };
+        
+        setProfessionalsList(
+          professionalsList.map((professional) =>
+            professional.id === editingProfessional.id ? updatedProfessional : professional
+          )
+        );
+        
+        toast.success(`Profissional ${data.name} atualizado com sucesso.`);
+        
+        // Recarregar os profissionais para garantir que temos os dados mais atualizados
+        fetchProfessionals();
+      } catch (error) {
+        console.error("Erro ao atualizar profissional:", error);
+        toast.error("Erro ao atualizar profissional. Tente novamente.");
+      }
     } else {
       const newProfessional = {
         id: generateId(),
@@ -188,18 +288,33 @@ const ProfessionalsAdmin = () => {
     setIsDeleteDialogOpen(false);
   };
   
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!editingProfessional) return;
     
-    setProfessionalsList(
-      professionalsList.filter(
-        (professional) => professional.id !== editingProfessional.id
-      )
-    );
-    
-    toast.success(`Profissional ${editingProfessional.name} excluído com sucesso.`);
-    
-    closeDeleteDialog();
+    try {
+      // Desativar o profissional em vez de excluir completamente
+      const { error } = await supabase
+        .from("professionals")
+        .update({ active: false })
+        .eq("id", editingProfessional.id);
+        
+      if (error) throw error;
+      
+      // Atualizar a lista local
+      setProfessionalsList(
+        professionalsList.filter(
+          (professional) => professional.id !== editingProfessional.id
+        )
+      );
+      
+      toast.success(`Profissional ${editingProfessional.name} desativado com sucesso.`);
+      
+      closeDeleteDialog();
+      
+    } catch (error) {
+      console.error("Erro ao desativar profissional:", error);
+      toast.error("Erro ao desativar profissional. Tente novamente.");
+    }
   };
 
   // Handlers para o diálogo de agenda
@@ -247,6 +362,18 @@ const ProfessionalsAdmin = () => {
       
       toast.success(`${editingProfessional.name} foi promovido para administrador com sucesso.`);
       
+      // Atualizar a lista local
+      const updatedProfessional = {
+        ...editingProfessional,
+        role: "admin"
+      };
+      
+      setProfessionalsList(
+        professionalsList.map((professional) =>
+          professional.id === editingProfessional.id ? updatedProfessional : professional
+        )
+      );
+      
       closePromoteDialog();
     } catch (error) {
       console.error("Erro ao promover usuário:", error);
@@ -265,6 +392,18 @@ const ProfessionalsAdmin = () => {
       await makeUserProfessional(editingProfessional.id);
       
       toast.success(`${editingProfessional.name} foi definido como profissional com sucesso.`);
+      
+      // Atualizar a lista local
+      const updatedProfessional = {
+        ...editingProfessional,
+        role: "professional"
+      };
+      
+      setProfessionalsList(
+        professionalsList.map((professional) =>
+          professional.id === editingProfessional.id ? updatedProfessional : professional
+        )
+      );
       
       closePromoteDialog();
     } catch (error) {
@@ -364,7 +503,7 @@ const ProfessionalsAdmin = () => {
       {/* Diálogos refatorados como componentes */}
       <EditProfessionalDialog
         professional={editingProfessional}
-        services={services}
+        services={servicesList}
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
         onSubmit={handleSubmit}
