@@ -273,6 +273,65 @@ export type Database = {
           created_at?: string
           updated_at?: string | null
         }
+      }
+      settings: {
+        Row: {
+          id: string
+          key: string
+          value: string | null
+          created_at: string
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          key: string
+          value?: string | null
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          key?: string
+          value?: string | null
+          created_at?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      reviews: {
+        Row: {
+          id: string
+          appointment_id: string
+          client_id: string
+          professional_id: string
+          rating: number
+          comment: string | null
+          status: string
+          created_at: string
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          appointment_id: string
+          client_id: string
+          professional_id: string
+          rating: number
+          comment?: string | null
+          status?: string
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          appointment_id?: string
+          client_id?: string
+          professional_id?: string
+          rating?: number
+          comment?: string | null
+          status?: string
+          created_at?: string
+          updated_at?: string | null
+        }
         Relationships: [
           {
             foreignKeyName: "reviews_appointment_id_fkey"

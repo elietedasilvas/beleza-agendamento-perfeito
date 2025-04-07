@@ -10,21 +10,58 @@ import { Service } from "@/types/global.d";
 import { ReviewsCarousel } from "@/components/ReviewsCarousel";
 
 const HeroSection = () => {
+  const [heroSettings, setHeroSettings] = useState({
+    image: "https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?ixlib=rb-1.2.1&auto=format&fit=crop&w=1200&q=80",
+    title: "Agende seu momento de beleza e bem-estar",
+    subtitle: "Reserve serviços de estética e barbearia com os melhores profissionais da cidade"
+  });
+
+  useEffect(() => {
+    const fetchHeroSettings = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('settings')
+          .select('key, value')
+          .in('key', ['hero_image', 'hero_title', 'hero_subtitle']);
+
+        if (error) throw error;
+
+        // Atualizar as configurações se existirem
+        if (data && data.length > 0) {
+          const settings: {[key: string]: string} = {};
+          data.forEach((item: {key: string, value: string}) => {
+            settings[item.key] = item.value;
+          });
+
+          setHeroSettings({
+            image: settings.hero_image || heroSettings.image,
+            title: settings.hero_title || heroSettings.title,
+            subtitle: settings.hero_subtitle || heroSettings.subtitle
+          });
+        }
+      } catch (error) {
+        console.error('Erro ao carregar configurações da página inicial:', error);
+      }
+    };
+
+    fetchHeroSettings();
+  }, []);
+
   return (
     <div className="relative overflow-hidden">
       <div className="absolute inset-0 beauty-gradient opacity-90 z-0"></div>
       <div
         className="absolute inset-0 z-0 bg-cover bg-center opacity-20"
-        style={{ backgroundImage: "url('https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?ixlib=rb-1.2.1&auto=format&fit=crop&w=1200&q=80')" }}
+        style={{ backgroundImage: `url('${heroSettings.image}')` }}
       ></div>
 
       <div className="container relative z-10 py-20 md:py-32 text-white">
         <div className="max-w-2xl mx-auto text-center">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
-            Agende seu momento de beleza e bem-estar
+            {heroSettings.title}
           </h1>
           <p className="text-lg md:text-xl mb-8 opacity-90">
-            Reserve serviços de estética e barbearia com os melhores profissionais da cidade
+            {heroSettings.subtitle}
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Button asChild className="beauty-button bg-white text-beauty-purple hover:bg-gray-100">
