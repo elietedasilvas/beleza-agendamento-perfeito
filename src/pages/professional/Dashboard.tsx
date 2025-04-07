@@ -5,9 +5,31 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { ptBR } from "date-fns/locale";
-import { format, isSameDay } from "date-fns";
+import { format, isSameDay, parseISO, addDays } from "date-fns";
 import { professionals, services, getServicesByProfessional } from "@/data/mockData";
-import { Clock, Scissors, User, Calendar as CalendarIcon } from "lucide-react";
+import { Clock, Scissors, User, Calendar as CalendarIcon, Check, X, Edit, Phone } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogFooter, 
+  DialogHeader, 
+  DialogTitle 
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useToast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Simulação de agendamentos para o profissional logado
 const mockAppointments = [
@@ -17,6 +39,7 @@ const mockAppointments = [
     professionalId: "3",
     client: "Maria Fernandes",
     phone: "(11) 98765-4321",
+    email: "maria.fernandes@example.com",
     date: "2025-04-10",
     time: "14:00",
     status: "scheduled"
@@ -27,6 +50,7 @@ const mockAppointments = [
     professionalId: "3",
     client: "Beatriz Almeida",
     phone: "(11) 98901-2345",
+    email: "beatriz.almeida@example.com",
     date: "2025-04-15",
     time: "16:00",
     status: "scheduled"
@@ -37,6 +61,7 @@ const mockAppointments = [
     professionalId: "3",
     client: "Luiza Santos",
     phone: "(11) 97654-3210",
+    email: "luiza.santos@example.com",
     date: "2025-04-07",
     time: "09:00",
     status: "scheduled"
@@ -46,13 +71,21 @@ const mockAppointments = [
 const ProfessionalDashboard = () => {
   const { professionalAuth } = useProfessionalAuth();
   const [date, setDate] = useState<Date | undefined>(new Date());
+  const [appointments, setAppointments] = useState(mockAppointments);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
+  const [isClientDetailsOpen, setIsClientDetailsOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+  const [selectedNewDate, setSelectedNewDate] = useState<Date | undefined>(undefined);
+  const [selectedNewTime, setSelectedNewTime] = useState<string | undefined>(undefined);
+  const { toast } = useToast();
   
   // Encontrar detalhes do profissional
   const professionalDetails = professionals.find(p => p.id === professionalAuth?.id);
   const professionalServices = getServicesByProfessional(professionalAuth?.id || "");
   
   // Filtrar agendamentos para o profissional logado
-  const myAppointments = mockAppointments.filter(
+  const myAppointments = appointments.filter(
     appointment => appointment.professionalId === professionalAuth?.id
   );
   
@@ -74,6 +107,102 @@ const ProfessionalDashboard = () => {
   const getServiceName = (serviceId: string) => {
     const service = services.find(s => s.id === serviceId);
     return service?.name || "Serviço não encontrado";
+  };
+
+  // Gerar horários disponíveis
+  const availableTimes = [
+    "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", 
+    "14:00", "15:00", "16:00", "17:00", "18:00", "19:00"
+  ];
+
+  // Funções para gerenciar agendamentos
+  const confirmAppointment = (appointmentId: string) => {
+    setAppointments(appointments.map(appointment => 
+      appointment.id === appointmentId 
+        ? { ...appointment, status: "confirmed" } 
+        : appointment
+    ));
+    
+    toast({
+      title: "Agendamento confirmado",
+      description: "O cliente será notificado da confirmação."
+    });
+  };
+
+  const cancelAppointment = (appointment: any) => {
+    setSelectedAppointment(appointment);
+    setIsAlertDialogOpen(true);
+  };
+
+  const handleCancelConfirm = () => {
+    if (selectedAppointment) {
+      setAppointments(appointments.map(appointment => 
+        appointment.id === selectedAppointment.id 
+          ? { ...appointment, status: "cancelled" } 
+          : appointment
+      ));
+      
+      toast({
+        title: "Agendamento cancelado",
+        description: "O cliente será notificado do cancelamento."
+      });
+    }
+    
+    setIsAlertDialogOpen(false);
+    setSelectedAppointment(null);
+  };
+
+  const openRescheduleDialog = (appointment: any) => {
+    setSelectedAppointment(appointment);
+    setSelectedNewDate(parseISO(appointment.date));
+    setSelectedNewTime(appointment.time);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleReschedule = () => {
+    if (selectedAppointment && selectedNewDate && selectedNewTime) {
+      const formattedDate = format(selectedNewDate, "yyyy-MM-dd");
+      
+      setAppointments(appointments.map(appointment => 
+        appointment.id === selectedAppointment.id 
+          ? { 
+              ...appointment, 
+              date: formattedDate, 
+              time: selectedNewTime,
+              status: "rescheduled" 
+            } 
+          : appointment
+      ));
+      
+      toast({
+        title: "Agendamento remarcado",
+        description: `Nova data: ${format(selectedNewDate, "d 'de' MMMM", { locale: ptBR })} às ${selectedNewTime}.`
+      });
+    }
+    
+    setIsEditDialogOpen(false);
+    setSelectedAppointment(null);
+  };
+
+  const viewClientDetails = (appointment: any) => {
+    setSelectedAppointment(appointment);
+    setIsClientDetailsOpen(true);
+  };
+
+  // Renderizar badge de status
+  const renderStatusBadge = (status: string) => {
+    switch (status) {
+      case "scheduled":
+        return <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">Agendado</span>;
+      case "confirmed":
+        return <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">Confirmado</span>;
+      case "cancelled":
+        return <span className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs">Cancelado</span>;
+      case "rescheduled":
+        return <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded-full text-xs">Remarcado</span>;
+      default:
+        return <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs">{status}</span>;
+    }
   };
   
   return (
@@ -156,34 +285,122 @@ const ProfessionalDashboard = () => {
               <TabsContent value="appointments" className="space-y-4 mt-4">
                 {appointmentsForSelectedDate.length > 0 ? (
                   appointmentsForSelectedDate.map(appointment => (
-                    <div key={appointment.id} className="border rounded-md p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-primary" />
-                          <h3 className="font-medium">{appointment.client}</h3>
+                    <div key={appointment.id} className="border rounded-md p-4 flex flex-col space-y-4">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-primary" />
+                            <h3 className="font-medium">{appointment.client}</h3>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Phone className="h-3 w-3" />
+                            <span>{appointment.phone}</span>
+                          </div>
                         </div>
-                        <p className="text-sm text-muted-foreground">{appointment.phone}</p>
+                        
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <Scissors className="h-4 w-4 text-primary" />
+                            <span className="text-sm font-medium">{getServiceName(appointment.serviceId)}</span>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-primary" />
+                            <span className="text-sm">{appointment.time}</span>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          {renderStatusBadge(appointment.status)}
+                        </div>
                       </div>
                       
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <Scissors className="h-4 w-4 text-primary" />
-                          <span className="text-sm font-medium">{getServiceName(appointment.serviceId)}</span>
+                      {/* Botões de ação */}
+                      {appointment.status === "scheduled" && (
+                        <div className="flex flex-wrap gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="text-green-600"
+                            onClick={() => confirmAppointment(appointment.id)}
+                          >
+                            <Check className="h-4 w-4 mr-1" />
+                            Confirmar
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="text-amber-600"
+                            onClick={() => openRescheduleDialog(appointment)}
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Remarcar
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="text-red-600"
+                            onClick={() => cancelAppointment(appointment)}
+                          >
+                            <X className="h-4 w-4 mr-1" />
+                            Cancelar
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="ghost"
+                            onClick={() => viewClientDetails(appointment)}
+                          >
+                            <User className="h-4 w-4 mr-1" />
+                            Dados do Cliente
+                          </Button>
                         </div>
-                      </div>
+                      )}
                       
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-primary" />
-                          <span className="text-sm">{appointment.time}</span>
+                      {appointment.status === "confirmed" && (
+                        <div className="flex flex-wrap gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="text-amber-600"
+                            onClick={() => openRescheduleDialog(appointment)}
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Remarcar
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="text-red-600"
+                            onClick={() => cancelAppointment(appointment)}
+                          >
+                            <X className="h-4 w-4 mr-1" />
+                            Cancelar
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="ghost"
+                            onClick={() => viewClientDetails(appointment)}
+                          >
+                            <User className="h-4 w-4 mr-1" />
+                            Dados do Cliente
+                          </Button>
                         </div>
-                      </div>
+                      )}
                       
-                      <div>
-                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
-                          Agendado
-                        </span>
-                      </div>
+                      {(appointment.status === "cancelled" || appointment.status === "rescheduled") && (
+                        <div className="flex flex-wrap gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="ghost"
+                            onClick={() => viewClientDetails(appointment)}
+                          >
+                            <User className="h-4 w-4 mr-1" />
+                            Dados do Cliente
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   ))
                 ) : (
@@ -225,6 +442,139 @@ const ProfessionalDashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Dialog para remarcar agendamento */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Remarcar Agendamento</DialogTitle>
+            <DialogDescription>
+              Selecione uma nova data e horário para o agendamento de {selectedAppointment?.client}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium">Nova Data</h4>
+              <Calendar
+                mode="single"
+                selected={selectedNewDate}
+                onSelect={setSelectedNewDate}
+                locale={ptBR}
+                disabled={(date) => date < new Date()}
+                className="border rounded-md"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium">Novo Horário</h4>
+              <Select 
+                value={selectedNewTime} 
+                onValueChange={setSelectedNewTime}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Selecione um horário" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableTimes.map(time => (
+                    <SelectItem key={time} value={time}>
+                      {time}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsEditDialogOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleReschedule}
+              disabled={!selectedNewDate || !selectedNewTime}
+            >
+              Confirmar Alteração
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* AlertDialog para confirmar cancelamento */}
+      <AlertDialog open={isAlertDialogOpen} onOpenChange={setIsAlertDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar agendamento</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja cancelar o agendamento de {selectedAppointment?.client}?
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Voltar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCancelConfirm} className="bg-red-600 hover:bg-red-700">
+              Cancelar Agendamento
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog para visualizar detalhes do cliente */}
+      <Dialog open={isClientDetailsOpen} onOpenChange={setIsClientDetailsOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Detalhes do Cliente</DialogTitle>
+            <DialogDescription>
+              Informações completas do cliente
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedAppointment && (
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <h4 className="text-sm font-medium">Nome</h4>
+                <p>{selectedAppointment.client}</p>
+              </div>
+              
+              <div className="space-y-1">
+                <h4 className="text-sm font-medium">Telefone</h4>
+                <p>{selectedAppointment.phone}</p>
+              </div>
+              
+              <div className="space-y-1">
+                <h4 className="text-sm font-medium">Email</h4>
+                <p>{selectedAppointment.email}</p>
+              </div>
+              
+              <div className="space-y-1">
+                <h4 className="text-sm font-medium">Serviço</h4>
+                <p>{getServiceName(selectedAppointment.serviceId)}</p>
+              </div>
+              
+              <div className="space-y-1">
+                <h4 className="text-sm font-medium">Data e Horário</h4>
+                <p>{formatAppointmentDate(selectedAppointment.date)} às {selectedAppointment.time}</p>
+              </div>
+              
+              <div className="space-y-1">
+                <h4 className="text-sm font-medium">Status</h4>
+                <div>{renderStatusBadge(selectedAppointment.status)}</div>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button 
+              onClick={() => setIsClientDetailsOpen(false)}
+            >
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
