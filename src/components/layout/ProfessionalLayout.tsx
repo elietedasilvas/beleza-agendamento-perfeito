@@ -24,6 +24,14 @@ const ProfessionalLayout = () => {
             <span className="font-medium">{professionalAuth.name}</span>
           </div>
           <div className="flex items-center gap-4">
+            <Link to="/professional" className="text-sm flex items-center gap-1 hover:underline">
+              <Calendar className="h-4 w-4" />
+              <span>Agenda</span>
+            </Link>
+            <Link to="/professional/schedule" className="text-sm flex items-center gap-1 hover:underline">
+              <Calendar className="h-4 w-4" />
+              <span>Disponibilidade</span>
+            </Link>
             <Link to="/" className="text-sm flex items-center gap-1 hover:underline">
               <Home className="h-4 w-4" />
               <span>Página Inicial</span>
