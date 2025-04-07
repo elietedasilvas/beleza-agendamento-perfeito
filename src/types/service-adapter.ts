@@ -17,9 +17,8 @@ export function adaptToMockService(supabaseService: SupabaseService): MockServic
     description: supabaseService.description || "", // Garantir que nunca é undefined
     price: supabaseService.price,
     duration: supabaseService.duration,
-    category: supabaseService.category,
+    category: (supabaseService.category || "all") as "hair" | "face" | "body" | "barber",
     image: supabaseService.image || "",
-    // Adicione outros campos necessários com valores padrão
   };
 }
 

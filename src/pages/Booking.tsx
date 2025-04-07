@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
@@ -29,31 +30,136 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
-  professionals as originalProfessionals,
-  services as originalServices,
-  getServicesByProfessional,
   formatCurrency,
   formatDuration,
   Professional,
   Service
 } from "@/data/mockData";
+import { supabase } from "@/integrations/supabase/client";
+import { Service as SupabaseService } from "@/types/global.d";
+import { adaptToMockService } from "@/types/service-adapter";
 
 const BookingPage = () => {
   const { professionalId } = useParams();
   const navigate = useNavigate();
   
-  const professionals = window.updatedProfessionals || originalProfessionals;
-  const services = window.updatedServices || originalServices;
+  const [professionals, setProfessionals] = useState<Professional[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
-  const [selectedProfessional, setSelectedProfessional] = useState<Professional | null>(
-    professionalId ? professionals.find(p => p.id === professionalId) || null : null
-  );
+  const [selectedProfessional, setSelectedProfessional] = useState<Professional | null>(null);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [availableTimes, setAvailableTimes] = useState<string[]>([]);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [bookingComplete, setBookingComplete] = useState(false);
+  
+  // Buscar profissionais e serviços do Supabase quando o componente for montado
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        // Buscar profissionais
+        const { data: professionalData, error: professionalError } = await supabase
+          .from("professionals")
+          .select("id, bio, active")
+          .eq("active", true);
+        
+        if (professionalError) {
+          console.error("Erro ao buscar profissionais:", professionalError);
+          toast({
+            title: "Erro",
+            description: "Não foi possível carregar os profissionais",
+            variant: "destructive"
+          });
+          return;
+        }
+        
+        // Buscar serviços
+        const { data: serviceData, error: serviceError } = await supabase
+          .from("services")
+          .select("*")
+          .eq("active", true);
+        
+        if (serviceError) {
+          console.error("Erro ao buscar serviços:", serviceError);
+          toast({
+            title: "Erro",
+            description: "Não foi possível carregar os serviços",
+            variant: "destructive"
+          });
+          return;
+        }
+        
+        // Converter serviços de Supabase para o formato MockData
+        const formattedServices = serviceData.map((service: SupabaseService) => 
+          adaptToMockService(service)
+        );
+        
+        // Buscar dados de perfil para cada profissional
+        const enhancedProfessionals = await Promise.all(
+          professionalData.map(async (prof) => {
+            const { data: profileData } = await supabase
+              .from("profiles")
+              .select("name, role, avatar_url")
+              .eq("id", prof.id)
+              .single();
+            
+            // Buscar serviços associados a este profissional
+            const { data: professionalServices } = await supabase
+              .from("professional_services")
+              .select("service_id")
+              .eq("professional_id", prof.id);
+            
+            const serviceIds = professionalServices ? 
+              professionalServices.map(ps => ps.service_id) : [];
+            
+            return {
+              id: prof.id,
+              name: profileData?.name || "Profissional",
+              role: profileData?.role || "professional",
+              about: prof.bio || "Especialista em serviços de beleza",
+              image: profileData?.avatar_url || "/placeholder.svg",
+              services: serviceIds,
+              rating: 5.0,
+              reviewCount: 0,
+              schedule: getDefaultSchedule()
+            };
+          })
+        );
+        
+        setProfessionals(enhancedProfessionals);
+        setServices(formattedServices);
+        
+        // Se tiver um ID de profissional na URL, selecionar ele
+        if (professionalId) {
+          const professional = enhancedProfessionals.find(p => p.id === professionalId);
+          if (professional) {
+            setSelectedProfessional(professional);
+          }
+        }
+      } catch (error) {
+        console.error("Erro ao carregar dados:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, [professionalId]);
+  
+  // Função auxiliar para criar um cronograma padrão
+  const getDefaultSchedule = () => {
+    const schedule: Record<string, string[]> = {};
+    const diasSemana = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta"];
+    
+    diasSemana.forEach(dia => {
+      schedule[dia] = ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"];
+    });
+    
+    return schedule;
+  };
   
   const getAvailableProfessionals = (serviceId?: string) => {
     if (!serviceId) return professionals;
@@ -65,11 +171,6 @@ const BookingPage = () => {
     const professional = professionals.find(p => p.id === professionalId);
     if (!professional) return [];
     return services.filter(service => professional.services.includes(service.id));
-  };
-  
-  const getAvailableSlots = (professional: Professional, day: string) => {
-    if (!professional || !professional.schedule) return [];
-    return professional.schedule[day] || [];
   };
   
   const availableProfessionals = selectedService
@@ -187,7 +288,13 @@ const BookingPage = () => {
           </div>
         </div>
         
-        {!bookingComplete ? (
+        {isLoading ? (
+          <Card className="beauty-card">
+            <CardContent className="flex justify-center items-center py-12">
+              <p>Carregando dados de agendamento...</p>
+            </CardContent>
+          </Card>
+        ) : !bookingComplete ? (
           <Card className="beauty-card">
             {currentStep === 1 && (
               <>
@@ -220,6 +327,9 @@ const BookingPage = () => {
                         ))}
                       </SelectContent>
                     </Select>
+                    {professionals.length === 0 && (
+                      <p className="text-sm text-red-500">Nenhum profissional encontrado no sistema.</p>
+                    )}
                   </div>
                   
                   <div className="space-y-2">
