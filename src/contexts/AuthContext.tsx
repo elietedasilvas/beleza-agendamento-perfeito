@@ -12,7 +12,7 @@ type AuthContextType = {
     success: boolean;
     error?: string;
   }>;
-  signup: (email: string, password: string, name: string) => Promise<{
+  signup: (email: string, password: string, name: string, phone: string) => Promise<{
     success: boolean;
     error?: string;
   }>;
@@ -88,7 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const signup = async (email: string, password: string, name: string) => {
+  const signup = async (email: string, password: string, name: string, phone: string) => {
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -97,6 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           data: {
             name,
             role: "client", // Default role for new users
+            phone,
           },
         },
       });
@@ -108,6 +109,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           variant: "destructive",
         });
         return { success: false, error: error.message };
+      }
+
+      // Create profile with phone number
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .upsert({
+            id: data.user.id,
+            name,
+            phone,
+            role: "client",
+          });
+
+        if (profileError) {
+          toast({
+            title: "Erro ao criar perfil",
+            description: profileError.message,
+            variant: "destructive",
+          });
+          return { success: false, error: profileError.message };
+        }
       }
 
       toast({
@@ -164,11 +186,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      
+
       // Clear user and session state
       setUser(null);
       setSession(null);
-      
+
       toast({
         title: "Logout realizado",
         description: "Você saiu da sua conta com sucesso.",
