@@ -103,6 +103,9 @@ export const addService = async (serviceData: Partial<Service>) => {
   // Garantir que o serviço tem categoria e imagem padrão se não fornecidos
   const completeServiceData = {
     ...serviceData,
+    name: serviceData.name || "",
+    duration: serviceData.duration || 0,
+    price: serviceData.price || 0,
     category: serviceData.category || "all",
     image: serviceData.image || "https://images.unsplash.com/photo-1560066984-138dadb4c035?ixlib=rb-1.2.1&auto=format&fit=crop&w=1200&q=80"
   };

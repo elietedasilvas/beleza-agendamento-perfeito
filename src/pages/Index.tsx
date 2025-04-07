@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight, Star, Clock, CalendarDays, BadgeCheck, Scissors } from "lucide-react";
@@ -175,12 +174,7 @@ const ProfessionalsSection = () => {
         
         const { data: professionalData, error: professionalError } = await supabase
           .from("professionals")
-          .select(`
-            id,
-            bio,
-            active,
-            profiles(id, name, avatar_url)
-          `)
+          .select("id, bio, active")
           .eq("active", true)
           .limit(4);
           
@@ -189,18 +183,37 @@ const ProfessionalsSection = () => {
           return;
         }
         
-        const formattedProfessionals = professionalData.map(prof => ({
-          id: prof.id,
-          name: prof.profiles?.name || "Profissional",
-          image: prof.profiles?.avatar_url || "https://images.unsplash.com/photo-1580489944761-15a19d654956?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
-          bio: prof.bio || "Especialista em beleza e bem-estar",
-          role: "Profissional",
-          rating: 5.0,
-          reviewCount: 0,
-          active: prof.active
-        }));
+        if (!professionalData || professionalData.length === 0) {
+          setLoading(false);
+          return;
+        }
         
-        setProfessionals(formattedProfessionals);
+        const enhancedProfessionals = await Promise.all(
+          professionalData.map(async (prof) => {
+            const { data: profileData, error: profileError } = await supabase
+              .from("profiles")
+              .select("name, avatar_url")
+              .eq("id", prof.id)
+              .single();
+              
+            if (profileError) {
+              console.error(`Error fetching profile for professional ${prof.id}:`, profileError);
+            }
+            
+            return {
+              id: prof.id,
+              name: profileData?.name || "Profissional",
+              image: profileData?.avatar_url || "https://images.unsplash.com/photo-1580489944761-15a19d654956?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
+              bio: prof.bio || "Especialista em beleza e bem-estar",
+              role: "Profissional",
+              rating: 5.0,
+              reviewCount: 0,
+              active: prof.active
+            };
+          })
+        );
+        
+        setProfessionals(enhancedProfessionals);
       } catch (error) {
         console.error("Error in ProfessionalsSection:", error);
       } finally {
