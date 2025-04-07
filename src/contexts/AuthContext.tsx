@@ -111,26 +111,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         return { success: false, error: error.message };
       }
 
-      // Create profile with phone number
-      if (data.user) {
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .upsert({
-            id: data.user.id,
-            name,
-            phone,
-            role: "client",
-          });
-
-        if (profileError) {
-          toast({
-            title: "Erro ao criar perfil",
-            description: profileError.message,
-            variant: "destructive",
-          });
-          return { success: false, error: profileError.message };
-        }
-      }
+      // Não precisamos criar o perfil manualmente aqui
+      // O Supabase tem um trigger que cria o perfil automaticamente quando um usuário é criado
+      // Apenas armazenamos os dados do usuário nos metadados da autenticação
 
       toast({
         title: "Cadastro realizado com sucesso",
