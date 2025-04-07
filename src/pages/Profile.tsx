@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { CalendarDays, Clock, User, Settings, LogOut, Calendar, History, BadgeCheck, Upload } from "lucide-react";
+import { CalendarDays, Clock, User, Settings, LogOut, Calendar, History, BadgeCheck, Upload, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { ReviewModal } from "@/components/ReviewModal";
 
 // Interface para os agendamentos
 interface Appointment {
@@ -45,6 +46,8 @@ const ProfilePage = () => {
   const [uploading, setUploading] = useState(false);
   const [loadingAppointments, setLoadingAppointments] = useState(false);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [userProfile, setUserProfile] = useState<{
     name: string;
     email: string;
@@ -287,13 +290,33 @@ const ProfilePage = () => {
     }
   };
 
+  // Abrir modal de avaliação
+  const handleOpenReviewModal = (appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    setReviewModalOpen(true);
+  };
+
+  // Callback após avaliação bem-sucedida
+  const handleReviewSuccess = () => {
+    // Atualizar a lista de agendamentos localmente
+    setAppointments(prev =>
+      prev.map(app =>
+        app.id === selectedAppointment?.id ? { ...app, status: "reviewed" } : app
+      )
+    );
+  };
+
   // Filter appointments
   const upcomingAppointments = appointments.filter(app =>
     app.status === "scheduled" || app.status === "confirmed"
   );
-  const pastAppointments = appointments.filter(app =>
-    app.status === "completed" || app.status === "cancelled"
+  const completedAppointments = appointments.filter(app =>
+    app.status === "completed"
   );
+  const reviewedOrCancelledAppointments = appointments.filter(app =>
+    app.status === "reviewed" || app.status === "cancelled"
+  );
+  const pastAppointments = [...completedAppointments, ...reviewedOrCancelledAppointments];
 
   // Get user initials for avatar
   const getInitials = (name: string) => {
@@ -489,9 +512,20 @@ const ProfilePage = () => {
                                   <p className="font-medium text-muted-foreground">
                                     {formatCurrency(appointment.service?.price || 0)}
                                   </p>
-                                  <Badge variant="outline" className="text-muted-foreground">
-                                    {appointment.status === 'completed' ? 'Concluído' : 'Cancelado'}
-                                  </Badge>
+                                  {appointment.status === 'completed' ? (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="text-yellow-500 hover:text-yellow-600"
+                                      onClick={() => handleOpenReviewModal(appointment)}
+                                    >
+                                      <Star className="h-4 w-4 mr-1" /> Avaliar
+                                    </Button>
+                                  ) : (
+                                    <Badge variant="outline" className="text-muted-foreground">
+                                      {appointment.status === 'reviewed' ? 'Avaliado' : 'Cancelado'}
+                                    </Badge>
+                                  )}
                                 </div>
                               </div>
                             </CardContent>
@@ -581,6 +615,16 @@ const ProfilePage = () => {
         </div>
       </div>
     </div>
+
+    {/* Modal de Avaliação */}
+    {selectedAppointment && (
+      <ReviewModal
+        open={reviewModalOpen}
+        onOpenChange={setReviewModalOpen}
+        appointment={selectedAppointment}
+        onSuccess={handleReviewSuccess}
+      />
+    )}
   );
 };
 
