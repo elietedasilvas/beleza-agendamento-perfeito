@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight, Star, Clock, CalendarDays, BadgeCheck, Scissors } from "lucide-react";
@@ -55,7 +56,7 @@ const ServiceSection = () => {
   ];
   
   const [activeCategory, setActiveCategory] = useState("all");
-  const [services, setServices] = useState([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
@@ -73,8 +74,8 @@ const ServiceSection = () => {
         }
         
         if (data) {
-          setServices(data);
-          window.updatedServices = data;
+          setServices(data as Service[]);
+          window.updatedServices = data as Service[];
         }
       } catch (error) {
         console.error("Error fetching services:", error);
@@ -178,7 +179,7 @@ const ProfessionalsSection = () => {
             id,
             bio,
             active,
-            profiles:id(id, name, avatar_url)
+            profiles(id, name, avatar_url)
           `)
           .eq("active", true)
           .limit(4);

@@ -203,30 +203,36 @@ export type Database = {
       services: {
         Row: {
           active: boolean | null
+          category: string | null
           created_at: string | null
           description: string | null
           duration: number
           id: string
+          image: string | null
           name: string
           price: number
           updated_at: string | null
         }
         Insert: {
           active?: boolean | null
+          category?: string | null
           created_at?: string | null
           description?: string | null
           duration: number
           id?: string
+          image?: string | null
           name: string
           price: number
           updated_at?: string | null
         }
         Update: {
           active?: boolean | null
+          category?: string | null
           created_at?: string | null
           description?: string | null
           duration?: number
           id?: string
+          image?: string | null
           name?: string
           price?: number
           updated_at?: string | null

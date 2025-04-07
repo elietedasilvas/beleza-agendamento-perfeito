@@ -37,22 +37,23 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { Plus, Pencil, Trash2 } from "lucide-react";
-import { services as originalServices, formatCurrency, formatDuration, Service } from "@/data/mockData";
+import { formatCurrency, formatDuration } from "@/data/mockData";
 import { toast } from "sonner";
 import { addService } from "@/integrations/supabase/admin-api";
 import { supabase } from "@/integrations/supabase/client";
+import { Service } from "@/types/global.d";
 
 // Create a global variable to track the updated services
 // In a real application, this would be managed by a global state management solution
 // or saved to a backend database
 if (!window.updatedServices) {
-  window.updatedServices = [...originalServices];
+  window.updatedServices = [];
 }
 
 const ServicesAdmin = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
-  const [servicesList, setServicesList] = useState(window.updatedServices);
+  const [servicesList, setServicesList] = useState<Service[]>(window.updatedServices || []);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const form = useForm({
@@ -85,11 +86,11 @@ const ServicesAdmin = () => {
     setEditingService(service);
     form.reset({
       name: service.name,
-      description: service.description,
+      description: service.description || "",
       price: service.price.toString(),
       duration: service.duration.toString(),
       category: service.category,
-      image: service.image
+      image: service.image || ""
     });
     setIsDialogOpen(true);
   };
@@ -175,7 +176,8 @@ const ServicesAdmin = () => {
     hair: "Cabelo",
     face: "Rosto",
     body: "Corpo",
-    barber: "Barbearia"
+    barber: "Barbearia",
+    all: "Todos"
   };
   
   return (

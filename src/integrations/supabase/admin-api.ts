@@ -145,5 +145,5 @@ export const addService = async (serviceData: Partial<Service>) => {
     }
   }
   
-  return data;
+  return data as Service;
 };
