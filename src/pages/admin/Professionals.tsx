@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { 
   Card, 
@@ -53,8 +54,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { 
-  ProfessionalsIcon, 
-  ServicesIcon, 
+  Users, 
+  Scissors, 
   User, 
   Mail, 
   Phone, 
