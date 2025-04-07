@@ -81,15 +81,14 @@ serve(async (req) => {
             active: true
           });
           
-          // Obter alguns serviços para associar por padrão
-          const { data: defaultServices } = await supabase
+          // Get all available services to associate by default
+          const { data: allServices } = await supabase
             .from("services")
-            .select("id")
-            .limit(3);
+            .select("id");
           
-          // Associar serviços padrão ao profissional
-          if (defaultServices && defaultServices.length > 0) {
-            const professionalServices = defaultServices.map(service => ({
+          // Associate all available services to the professional
+          if (allServices && allServices.length > 0) {
+            const professionalServices = allServices.map(service => ({
               professional_id: newUser.user.id,
               service_id: service.id
             }));
@@ -97,7 +96,7 @@ serve(async (req) => {
             await supabase.from("professional_services").insert(professionalServices);
           }
           
-          // Adicionar disponibilidade padrão (seg-sex, 9h às 18h)
+          // Add default availability (Mon-Fri, 9am to 6pm)
           const defaultAvailability = [
             { day_of_week: 1, start_time: "09:00", end_time: "18:00", professional_id: newUser.user.id },
             { day_of_week: 2, start_time: "09:00", end_time: "18:00", professional_id: newUser.user.id },
@@ -138,15 +137,14 @@ serve(async (req) => {
               active: true
             });
             
-            // Obter alguns serviços para associar por padrão
-            const { data: defaultServices } = await supabase
+            // Get all available services to associate by default
+            const { data: allServices } = await supabase
               .from("services")
-              .select("id")
-              .limit(3);
+              .select("id");
             
-            // Associar serviços padrão ao profissional
-            if (defaultServices && defaultServices.length > 0) {
-              const professionalServices = defaultServices.map(service => ({
+            // Associate all available services to the professional
+            if (allServices && allServices.length > 0) {
+              const professionalServices = allServices.map(service => ({
                 professional_id: userId,
                 service_id: service.id
               }));
@@ -154,7 +152,7 @@ serve(async (req) => {
               await supabase.from("professional_services").insert(professionalServices);
             }
             
-            // Adicionar disponibilidade padrão (seg-sex, 9h às 18h)
+            // Add default availability (Mon-Fri, 9am to 6pm)
             const defaultAvailability = [
               { day_of_week: 1, start_time: "09:00", end_time: "18:00", professional_id: userId },
               { day_of_week: 2, start_time: "09:00", end_time: "18:00", professional_id: userId },

@@ -39,6 +39,8 @@ import { useForm } from "react-hook-form";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { services as originalServices, formatCurrency, formatDuration, Service } from "@/data/mockData";
 import { toast } from "sonner";
+import { addService } from "@/integrations/supabase/admin-api";
+import { supabase } from "@/integrations/supabase/client";
 
 // Create a global variable to track the updated services
 // In a real application, this would be managed by a global state management solution
@@ -51,6 +53,7 @@ const ServicesAdmin = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [servicesList, setServicesList] = useState(window.updatedServices);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const form = useForm({
     defaultValues: {
@@ -91,45 +94,81 @@ const ServicesAdmin = () => {
     setIsDialogOpen(true);
   };
   
-  const onSubmit = (data: any) => {
-    const newService = {
-      id: editingService ? editingService.id : `${servicesList.length + 1}`,
-      name: data.name,
-      description: data.description,
-      price: Number(data.price),
-      duration: Number(data.duration),
-      category: data.category as 'hair' | 'face' | 'body' | 'barber',
-      image: data.image
-    };
+  const onSubmit = async (data: any) => {
+    setIsSubmitting(true);
     
-    let updatedList;
-    if (editingService) {
-      // Update existing service
-      updatedList = servicesList.map(s => 
-        s.id === editingService.id ? newService : s
-      );
-      toast.success("Serviço atualizado com sucesso!");
-    } else {
-      // Add new service
-      updatedList = [...servicesList, newService];
-      toast.success("Novo serviço adicionado com sucesso!");
+    try {
+      const serviceData = {
+        name: data.name,
+        description: data.description,
+        price: Number(data.price),
+        duration: Number(data.duration),
+        category: data.category,
+        image: data.image || null
+      };
+      
+      if (editingService) {
+        // Update existing service
+        const { error } = await supabase
+          .from("services")
+          .update(serviceData)
+          .eq("id", editingService.id);
+          
+        if (error) throw error;
+        
+        const updatedService = {
+          ...editingService,
+          ...serviceData
+        };
+        
+        // Update local state
+        const updatedList = servicesList.map(s => 
+          s.id === editingService.id ? updatedService : s
+        );
+        setServicesList(updatedList);
+        window.updatedServices = updatedList;
+        
+        toast.success("Serviço atualizado com sucesso!");
+      } else {
+        // Add new service
+        const newService = await addService(serviceData);
+        
+        if (newService) {
+          const updatedList = [...servicesList, newService];
+          setServicesList(updatedList);
+          window.updatedServices = updatedList;
+          toast.success("Novo serviço adicionado com sucesso!");
+        }
+      }
+      
+      setIsDialogOpen(false);
+      setEditingService(null);
+      form.reset();
+    } catch (error) {
+      console.error("Erro ao salvar serviço:", error);
+      toast.error("Erro ao salvar serviço. Tente novamente.");
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    setServicesList(updatedList);
-    // Update the global variable
-    window.updatedServices = updatedList;
-    
-    setIsDialogOpen(false);
-    setEditingService(null);
-    form.reset();
   };
   
-  const onDeleteService = (id: string) => {
-    const updatedList = servicesList.filter(s => s.id !== id);
-    setServicesList(updatedList);
-    // Update the global variable
-    window.updatedServices = updatedList;
-    toast.success("Serviço removido com sucesso!");
+  const onDeleteService = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("services")
+        .delete()
+        .eq("id", id);
+        
+      if (error) throw error;
+      
+      const updatedList = servicesList.filter(s => s.id !== id);
+      setServicesList(updatedList);
+      window.updatedServices = updatedList;
+      toast.success("Serviço removido com sucesso!");
+    } catch (error) {
+      console.error("Erro ao remover serviço:", error);
+      toast.error("Erro ao remover serviço. Tente novamente.");
+    }
   };
   
   const categoryNames = {
@@ -269,8 +308,10 @@ const ServicesAdmin = () => {
                   <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                     Cancelar
                   </Button>
-                  <Button type="submit">
-                    {editingService ? "Salvar Alterações" : "Adicionar Serviço"}
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting 
+                      ? "Salvando..." 
+                      : (editingService ? "Salvar Alterações" : "Adicionar Serviço")}
                   </Button>
                 </DialogFooter>
               </form>
@@ -294,7 +335,7 @@ const ServicesAdmin = () => {
             {servicesList.map((service) => (
               <TableRow key={service.id}>
                 <TableCell className="font-medium">{service.name}</TableCell>
-                <TableCell>{categoryNames[service.category]}</TableCell>
+                <TableCell>{categoryNames[service.category as keyof typeof categoryNames]}</TableCell>
                 <TableCell>{formatCurrency(service.price)}</TableCell>
                 <TableCell>{formatDuration(service.duration)}</TableCell>
                 <TableCell className="text-right">
@@ -318,4 +359,3 @@ const ServicesAdmin = () => {
 };
 
 export default ServicesAdmin;
-

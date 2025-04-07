@@ -1,126 +1,103 @@
 
 import { useState, useEffect } from "react";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
+import { supabase } from "@/integrations/supabase/client";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Scissors, ShieldCheck, UserCog } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { makeUserAdmin, makeUserProfessional } from "@/integrations/supabase/admin-api";
+import { UserCog, ShieldCheck, ChevronDown } from "lucide-react";
+import { toast } from "sonner";
 import { useRole } from "@/hooks/use-role";
-import { Skeleton } from "@/components/ui/skeleton";
 import UserRoleDialog from "@/components/admin/users/UserRoleDialog";
+import { makeUserAdmin, makeUserProfessional } from "@/integrations/supabase/admin-api";
 
-type User = {
+type UserWithEmail = {
   id: string;
-  email: string;
   name: string | null;
-  role: "admin" | "professional" | "client";
-  created_at: string;
+  role: string;
+  email: string;
 };
 
 const UsersAdmin = () => {
-  const { toast } = useToast();
   const { isAdmin } = useRole();
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<UserWithEmail[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
   const [isPromoting, setIsPromoting] = useState(false);
-
-  // Buscar a lista de usuários
+  const [selectedUser, setSelectedUser] = useState<UserWithEmail | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        setLoading(true);
-        
-        // Primeiro, obter os perfis dos usuários
-        const { data: profiles, error: profilesError } = await supabase
-          .from("profiles")
-          .select("id, name, role, created_at");
-
-        if (profilesError) {
-          console.error("Erro ao buscar perfis:", profilesError);
-          toast({
-            title: "Erro",
-            description: "Não foi possível carregar a lista de usuários.",
-            variant: "destructive",
+    fetchUsers();
+  }, []);
+  
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch profiles
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, name, role");
+      
+      if (profilesError) throw profilesError;
+      
+      // Get user emails - this requires admin access
+      const usersWithEmail: UserWithEmail[] = [];
+      
+      for (const profile of profiles || []) {
+        try {
+          const { data: userData, error: userError } = await supabase.auth.admin.getUserById(
+            profile.id
+          );
+          
+          if (userError) {
+            console.error("Error fetching user details:", userError);
+            usersWithEmail.push({
+              ...profile,
+              email: "Email não disponível"
+            });
+          } else {
+            usersWithEmail.push({
+              ...profile,
+              email: userData.user?.email || "Email não disponível"
+            });
+          }
+        } catch (error) {
+          console.error("Error in user fetch loop:", error);
+          usersWithEmail.push({
+            ...profile,
+            email: "Email não disponível"
           });
-          setLoading(false);
-          return;
         }
-
-        // Obter detalhes dos usuários do Auth
-        const { data: authUsersData, error: authError } = await supabase.auth.admin.listUsers();
-        
-        if (authError) {
-          console.error("Erro ao buscar detalhes dos usuários:", authError);
-          
-          // Mesmo com erro, vamos montar os usuários com os dados que temos
-          const usersWithoutEmails = profiles.map((profile) => ({
-            ...profile,
-            email: "Email não disponível",
-          }));
-          
-          setUsers(usersWithoutEmails as User[]);
-          setLoading(false);
-          return;
-        }
-
-        // Combinar os dados de perfil com emails
-        const completeUsers = profiles.map((profile) => {
-          const authUser = authUsersData?.users?.find(user => user.id === profile.id);
-          return {
-            ...profile,
-            email: authUser?.email || "Email não disponível",
-          };
-        });
-
-        setUsers(completeUsers as User[]);
-      } catch (error) {
-        console.error("Erro inesperado:", error);
-        toast({
-          title: "Erro",
-          description: "Ocorreu um erro inesperado ao carregar os usuários.",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
       }
-    };
-
-    if (isAdmin) {
-      fetchUsers();
+      
+      setUsers(usersWithEmail);
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Erro ao carregar usuários");
+    } finally {
+      setLoading(false);
     }
-  }, [isAdmin, toast]);
-
-  // Abrir diálogo para gerenciar papel do usuário
-  const openRoleDialog = (user: User) => {
+  };
+  
+  const handleOpenDialog = (user: UserWithEmail) => {
     setSelectedUser(user);
-    setIsRoleDialogOpen(true);
+    setIsDialogOpen(true);
   };
-
-  // Fechar diálogo de papel
-  const closeRoleDialog = () => {
-    setSelectedUser(null);
-    setIsRoleDialogOpen(false);
-  };
-
-  // Promover usuário para administrador
-  const handlePromoteToAdmin = async () => {
+  
+  const handleMakeAdmin = async () => {
     if (!selectedUser) return;
     
     try {
@@ -128,32 +105,21 @@ const UsersAdmin = () => {
       
       await makeUserAdmin(selectedUser.id);
       
-      // Atualizar lista de usuários
-      setUsers(
-        users.map((user) =>
-          user.id === selectedUser.id ? { ...user, role: "admin" } : user
-        )
-      );
+      toast.success(`${selectedUser.name || 'Usuário'} foi promovido para administrador`);
+      setIsDialogOpen(false);
       
-      toast({
-        title: "Usuário promovido",
-        description: `${selectedUser.name || selectedUser.email} foi promovido para administrador com sucesso.`,
-      });
-      
-      closeRoleDialog();
+      // Update local state
+      setUsers(users.map(user => 
+        user.id === selectedUser.id ? { ...user, role: "admin" } : user
+      ));
     } catch (error) {
-      console.error("Erro ao promover usuário:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível promover o usuário para administrador.",
-        variant: "destructive",
-      });
+      console.error("Error making admin:", error);
+      toast.error("Erro ao promover usuário para administrador");
     } finally {
       setIsPromoting(false);
     }
   };
   
-  // Definir usuário como profissional
   const handleMakeProfessional = async () => {
     if (!selectedUser) return;
     
@@ -162,60 +128,21 @@ const UsersAdmin = () => {
       
       await makeUserProfessional(selectedUser.id);
       
-      // Atualizar lista de usuários
-      setUsers(
-        users.map((user) =>
-          user.id === selectedUser.id ? { ...user, role: "professional" } : user
-        )
-      );
+      toast.success(`${selectedUser.name || 'Usuário'} foi definido como profissional`);
+      setIsDialogOpen(false);
       
-      toast({
-        title: "Papel atualizado",
-        description: `${selectedUser.name || selectedUser.email} foi definido como profissional com sucesso.`,
-      });
-      
-      closeRoleDialog();
+      // Update local state
+      setUsers(users.map(user => 
+        user.id === selectedUser.id ? { ...user, role: "professional" } : user
+      ));
     } catch (error) {
-      console.error("Erro ao definir usuário como profissional:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível definir o usuário como profissional.",
-        variant: "destructive",
-      });
+      console.error("Error making professional:", error);
+      toast.error("Erro ao definir usuário como profissional");
     } finally {
       setIsPromoting(false);
     }
   };
-
-  // Renderizar skeleton durante carregamento
-  if (loading) {
-    return (
-      <div className="space-y-6 animate-fade-in">
-        <div>
-          <h1 className="text-3xl font-playfair font-bold">Gerenciar Usuários</h1>
-          <p className="text-muted-foreground">
-            Visualize e gerencie os usuários cadastrados no sistema.
-          </p>
-        </div>
-        <Card>
-          <CardHeader>
-            <CardTitle>Lista de Usuários</CardTitle>
-            <CardDescription>
-              Carregando usuários...
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
+  
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -224,79 +151,59 @@ const UsersAdmin = () => {
           Visualize e gerencie os usuários cadastrados no sistema.
         </p>
       </div>
+      
       <Card>
         <CardHeader>
           <CardTitle>Lista de Usuários</CardTitle>
           <CardDescription>
-            Visualize e gerencie os usuários cadastrados no sistema. Você pode promover clientes para profissionais ou administradores.
+            Gerencie os usuários e seus níveis de acesso.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Papel</TableHead>
-                <TableHead>Data de Cadastro</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.length > 0 ? (
-                users.map((user) => (
+          {loading ? (
+            <div className="text-center py-4">Carregando usuários...</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Função</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {users.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.name || "Sem nome"}</TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        user.role === "admin" 
-                          ? "bg-purple-100 text-purple-800" 
-                          : user.role === "professional" 
-                          ? "bg-blue-100 text-blue-800" 
-                          : "bg-gray-100 text-gray-800"
-                      }`}>
-                        {user.role === "admin" 
-                          ? "Administrador" 
-                          : user.role === "professional" 
-                          ? "Profissional" 
-                          : "Cliente"}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {new Date(user.created_at).toLocaleDateString("pt-BR")}
+                      <span className="capitalize">{user.role}</span>
                     </TableCell>
                     <TableCell className="text-right">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => openRoleDialog(user)}
-                        disabled={user.role === "admin"}
+                        onClick={() => handleOpenDialog(user)}
                       >
                         <UserCog className="h-4 w-4 mr-2" />
-                        Gerenciar Papel
+                        Alterar Função
+                        <ChevronDown className="h-4 w-4 ml-2" />
                       </Button>
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
-                    Nenhum usuário encontrado.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
-
-      {/* Diálogo para gerenciar papel do usuário */}
+      
       <UserRoleDialog
         user={selectedUser}
-        open={isRoleDialogOpen}
-        onOpenChange={setIsRoleDialogOpen}
-        onPromoteAdmin={handlePromoteToAdmin}
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        onMakeAdmin={handleMakeAdmin}
         onMakeProfessional={handleMakeProfessional}
         isPromoting={isPromoting}
       />

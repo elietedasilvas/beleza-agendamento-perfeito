@@ -1,14 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight, Star, Clock, CalendarDays, BadgeCheck, Scissors } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { services as originalServices, professionals, formatCurrency, formatDuration } from "@/data/mockData";
-
-const getServices = () => {
-  return window.updatedServices || originalServices;
-};
+import { professionals, formatCurrency, formatDuration } from "@/data/mockData";
+import { supabase } from "@/integrations/supabase/client";
 
 const HeroSection = () => {
   return (
@@ -57,11 +54,40 @@ const ServiceSection = () => {
   ];
   
   const [activeCategory, setActiveCategory] = useState("all");
+  const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(true);
   
-  const currentServices = getServices();
+  useEffect(() => {
+    async function fetchServices() {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from("services")
+          .select("*")
+          .eq("active", true);
+          
+        if (error) {
+          console.error("Error fetching services:", error);
+          return;
+        }
+        
+        if (data) {
+          setServices(data);
+          window.updatedServices = data;
+        }
+      } catch (error) {
+        console.error("Error fetching services:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    fetchServices();
+  }, []);
+  
   const filteredServices = activeCategory === "all" 
-    ? currentServices 
-    : currentServices.filter(service => service.category === activeCategory);
+    ? services 
+    : services.filter(service => service.category === activeCategory);
   
   return (
     <section className="py-16 bg-beauty-light/50">
@@ -85,30 +111,41 @@ const ServiceSection = () => {
           </div>
           
           <TabsContent value={activeCategory} className="mt-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {filteredServices.map(service => (
-                <Card key={service.id} className="beauty-card overflow-hidden group cursor-pointer">
-                  <div className="aspect-video overflow-hidden relative">
-                    <img 
-                      src={service.image} 
-                      alt={service.name} 
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                  <CardContent className="p-4">
-                    <h3 className="font-bold text-lg mb-1">{service.name}</h3>
-                    <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{service.description}</p>
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center">
-                        <Clock className="h-4 w-4 text-muted-foreground mr-1" />
-                        <span className="text-sm text-muted-foreground">{formatDuration(service.duration)}</span>
-                      </div>
-                      <p className="font-semibold text-beauty-purple">{formatCurrency(service.price)}</p>
+            {loading ? (
+              <div className="text-center py-12">Carregando serviços...</div>
+            ) : filteredServices.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">Nenhum serviço encontrado nesta categoria.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {filteredServices.map(service => (
+                  <Card key={service.id} className="beauty-card overflow-hidden group cursor-pointer">
+                    <div className="aspect-video overflow-hidden relative">
+                      <img 
+                        src={service.image || 'https://images.unsplash.com/photo-1560066984-138dadb4c035?ixlib=rb-1.2.1&auto=format&fit=crop&w=1200&q=80'} 
+                        alt={service.name} 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          e.currentTarget.src = 'https://images.unsplash.com/photo-1560066984-138dadb4c035?ixlib=rb-1.2.1&auto=format&fit=crop&w=1200&q=80';
+                        }}
+                      />
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    <CardContent className="p-4">
+                      <h3 className="font-bold text-lg mb-1">{service.name}</h3>
+                      <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{service.description}</p>
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center">
+                          <Clock className="h-4 w-4 text-muted-foreground mr-1" />
+                          <span className="text-sm text-muted-foreground">{formatDuration(service.duration)}</span>
+                        </div>
+                        <p className="font-semibold text-beauty-purple">{formatCurrency(service.price)}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
             
             <div className="text-center mt-10">
               <Button asChild className="beauty-button">
