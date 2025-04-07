@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { 
   Card, 
@@ -62,12 +61,14 @@ import {
   Calendar as CalendarIcon,
   Save,
   Edit,
-  Trash2
+  Trash2,
+  ShieldCheck
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { services, professionals, Professional, Service } from "@/data/mockData";
+import { makeUserAdmin, makeUserProfessional } from "@/integrations/supabase/admin-api";
+import { useRole } from "@/hooks/use-role";
 
-// Generate a unique ID
 const generateId = (): string => {
   return Math.random().toString(36).substring(2, 15);
 };
@@ -183,6 +184,7 @@ const ScheduleDialog = ({
 
 const ProfessionalsAdmin = () => {
   const { toast } = useToast();
+  const { isAdmin } = useRole();
   const [professionalsList, setProfessionalsList] = useState<Professional[]>(
     window.updatedProfessionals || professionals
   );
@@ -192,9 +194,10 @@ const ProfessionalsAdmin = () => {
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [selectedProfessional, setSelectedProfessional] = useState<Professional | null>(null);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const [isPromoteDialogOpen, setIsPromoteDialogOpen] = useState(false);
+  const [isPromoting, setIsPromoting] = useState(false);
   
   useEffect(() => {
-    // Update global state when professionals list changes
     window.updatedProfessionals = professionalsList;
   }, [professionalsList]);
   
@@ -239,7 +242,6 @@ const ProfessionalsAdmin = () => {
   
   const handleSubmit = (data: any) => {
     if (editingProfessional) {
-      // Atualizar profissional existente
       const updatedProfessional = {
         ...editingProfessional,
         name: data.name,
@@ -261,7 +263,6 @@ const ProfessionalsAdmin = () => {
         description: `Profissional ${data.name} atualizado com sucesso.`,
       });
     } else {
-      // Criar novo profissional
       const newProfessional = {
         id: generateId(),
         name: data.name,
@@ -338,6 +339,68 @@ const ProfessionalsAdmin = () => {
     closeScheduleDialog();
   };
   
+  const openPromoteDialog = (professional: Professional) => {
+    setEditingProfessional(professional);
+    setIsPromoteDialogOpen(true);
+  };
+  
+  const closePromoteDialog = () => {
+    setEditingProfessional(null);
+    setIsPromoteDialogOpen(false);
+  };
+  
+  const handlePromoteToAdmin = async () => {
+    if (!editingProfessional) return;
+    
+    try {
+      setIsPromoting(true);
+      
+      await makeUserAdmin(editingProfessional.id);
+      
+      toast({
+        title: "Usuário promovido",
+        description: `${editingProfessional.name} foi promovido para administrador com sucesso.`,
+      });
+      
+      closePromoteDialog();
+    } catch (error) {
+      console.error("Erro ao promover usuário:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível promover o usuário para administrador.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPromoting(false);
+    }
+  };
+  
+  const handleMakeProfessional = async () => {
+    if (!editingProfessional) return;
+    
+    try {
+      setIsPromoting(true);
+      
+      await makeUserProfessional(editingProfessional.id);
+      
+      toast({
+        title: "Papel atualizado",
+        description: `${editingProfessional.name} foi definido como profissional com sucesso.`,
+      });
+      
+      closePromoteDialog();
+    } catch (error) {
+      console.error("Erro ao definir usuário como profissional:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível definir o usuário como profissional.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPromoting(false);
+    }
+  };
+  
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -383,6 +446,13 @@ const ProfessionalsAdmin = () => {
                         onClick={() => openEditDialog(professional)}
                       >
                         <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="icon"
+                        onClick={() => openPromoteDialog(professional)}
+                      >
+                        <ShieldCheck className="h-4 w-4" />
                       </Button>
                       <Button 
                         variant="destructive" 
@@ -552,6 +622,49 @@ const ProfessionalsAdmin = () => {
           onUpdateSchedule={updateProfessionalSchedule}
         />
       )}
+
+      <Dialog open={isPromoteDialogOpen} onOpenChange={setIsPromoteDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Gerenciar Papel do Usuário</DialogTitle>
+            <DialogDescription>
+              Defina o papel deste usuário no sistema. Esta ação pode conceder permissões adicionais ao usuário.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <p className="text-sm text-muted-foreground">
+              Usuário: <span className="font-semibold">{editingProfessional?.name}</span>
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Email: <span className="font-semibold">{editingProfessional?.email}</span>
+            </p>
+            <div className="flex flex-col gap-3">
+              <Button 
+                onClick={handlePromoteToAdmin}
+                className="w-full"
+                disabled={isPromoting}
+              >
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                Promover para Administrador
+              </Button>
+              <Button 
+                onClick={handleMakeProfessional}
+                variant="outline"
+                className="w-full"
+                disabled={isPromoting}
+              >
+                <Scissors className="mr-2 h-4 w-4" />
+                Definir como Profissional
+              </Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="secondary" onClick={closePromoteDialog} disabled={isPromoting}>
+              Cancelar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
