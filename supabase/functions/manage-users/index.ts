@@ -116,6 +116,20 @@ serve(async (req) => {
         responseData = { success: true };
         break;
 
+      case "make_admin":
+        // Update user role to admin in their profile
+        const { error: adminUpdateError } = await supabase
+          .from("profiles")
+          .update({ role: "admin" })
+          .eq("id", userId);
+
+        if (adminUpdateError) {
+          throw adminUpdateError;
+        }
+
+        responseData = { success: true, message: "User has been promoted to admin" };
+        break;
+
       default:
         return new Response(
           JSON.stringify({ error: "Invalid action" }),
