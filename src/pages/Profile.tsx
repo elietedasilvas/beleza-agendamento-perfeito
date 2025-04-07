@@ -66,31 +66,39 @@ const ProfilePage = () => {
     phone: "",
     avatar_url: "",
   });
-  
+
   // Fetch user profile data
   useEffect(() => {
     const fetchUserProfile = async () => {
       if (!user) return;
-      
+
       setLoading(true);
-      
+
       try {
+        // Primeiro, tentamos obter os dados dos metadados do usuário
+        const userData = user.user_metadata;
+
+        // Depois, buscamos dados adicionais da tabela profiles
         const { data, error } = await supabase
           .from("profiles")
           .select("name, phone, avatar_url")
           .eq("id", user.id)
           .single();
-        
-        if (error) {
-          throw error;
-        }
-        
+
+        // Combinamos os dados, priorizando os metadados do usuário para o telefone
         setUserProfile({
-          name: data?.name || "",
+          name: userData?.name || data?.name || "",
           email: user.email || "",
-          phone: data?.phone || "",
+          phone: userData?.phone || data?.phone || "",
           avatar_url: data?.avatar_url || "",
         });
+
+        // Se o telefone não estiver no perfil mas estiver nos metadados, atualizamos o perfil
+        if (userData?.phone && !data?.phone) {
+          await updateProfile({
+            phone: userData.phone
+          });
+        }
       } catch (error: any) {
         console.error("Error fetching profile:", error);
         toast({
@@ -102,15 +110,15 @@ const ProfilePage = () => {
         setLoading(false);
       }
     };
-    
+
     fetchUserProfile();
-  }, [user, toast]);
-  
+  }, [user, toast, updateProfile]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setUserProfile(prev => ({ ...prev, [name]: value }));
   };
-  
+
   const handleSaveProfile = async () => {
     try {
       const { success, error } = await updateProfile({
@@ -118,7 +126,7 @@ const ProfilePage = () => {
         phone: userProfile.phone,
         avatar_url: userProfile.avatar_url,
       });
-      
+
       if (!success && error) {
         throw new Error(error);
       }
@@ -130,55 +138,55 @@ const ProfilePage = () => {
       });
     }
   };
-  
+
   const handleLogout = async () => {
     await logout();
     navigate("/auth");
   };
-  
+
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
-    
+
     setUploading(true);
-    
+
     try {
       // Generate a unique file name
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `avatars/${fileName}`;
-      
+
       // Upload the file to Supabase storage
       const { error: uploadError } = await supabase.storage
         .from("avatars")
         .upload(filePath, file);
-      
+
       if (uploadError) {
         throw uploadError;
       }
-      
+
       // Get the public URL
       const { data: urlData } = supabase.storage
         .from("avatars")
         .getPublicUrl(filePath);
-      
+
       const avatarUrl = urlData.publicUrl;
-      
+
       // Update the user profile with the new avatar URL
       const { success, error } = await updateProfile({
         avatar_url: avatarUrl,
       });
-      
+
       if (!success && error) {
         throw new Error(error);
       }
-      
+
       // Update local state
       setUserProfile(prev => ({
         ...prev,
         avatar_url: avatarUrl,
       }));
-      
+
       toast({
         title: "Avatar atualizado",
         description: "Sua foto de perfil foi atualizada com sucesso!",
@@ -194,18 +202,18 @@ const ProfilePage = () => {
       setUploading(false);
     }
   };
-  
+
   const handleCancelAppointment = (id: string) => {
     toast({
       title: "Agendamento cancelado",
       description: "Seu agendamento foi cancelado com sucesso.",
     });
   };
-  
+
   // Filter appointments
   const upcomingAppointments = mockAppointments.filter(app => app.status === "scheduled");
   const pastAppointments = mockAppointments.filter(app => app.status === "completed");
-  
+
   // Get user initials for avatar
   const getInitials = (name: string) => {
     if (!name) return "?";
@@ -216,7 +224,7 @@ const ProfilePage = () => {
       .toUpperCase()
       .substring(0, 2);
   };
-  
+
   if (loading) {
     return (
       <div className="container py-8 flex items-center justify-center">
@@ -224,7 +232,7 @@ const ProfilePage = () => {
       </div>
     );
   }
-  
+
   return (
     <div className="container py-8 md:py-12">
       <div className="max-w-4xl mx-auto">
@@ -240,10 +248,10 @@ const ProfilePage = () => {
                   <div className="bg-primary hover:bg-primary/90 text-white p-1 rounded-full">
                     <Upload className="h-4 w-4" />
                   </div>
-                  <input 
-                    id="avatar-upload" 
-                    type="file" 
-                    accept="image/*" 
+                  <input
+                    id="avatar-upload"
+                    type="file"
+                    accept="image/*"
                     className="hidden"
                     onChange={handleAvatarUpload}
                     disabled={uploading}
@@ -254,7 +262,7 @@ const ProfilePage = () => {
             <h1 className="text-2xl font-bold">{userProfile.name || "Usuário"}</h1>
             <p className="text-muted-foreground">{userProfile.email}</p>
           </div>
-          
+
           <div className="flex-1">
             <Tabs defaultValue="appointments" className="w-full">
               <TabsList className="grid grid-cols-3 mb-8">
@@ -271,7 +279,7 @@ const ProfilePage = () => {
                   Perfil
                 </TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="appointments">
                 <Card>
                   <CardHeader>
@@ -297,7 +305,7 @@ const ProfilePage = () => {
                                       </p>
                                     </div>
                                   </div>
-                                  
+
                                   <div className="flex gap-4">
                                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
                                       <CalendarDays className="h-4 w-4" />
@@ -311,13 +319,13 @@ const ProfilePage = () => {
                                     </div>
                                   </div>
                                 </div>
-                                
+
                                 <div className="flex flex-col md:items-end justify-between">
                                   <p className="font-medium text-beauty-purple">
                                     {formatCurrency(appointment.price)}
                                   </p>
-                                  <Button 
-                                    variant="outline" 
+                                  <Button
+                                    variant="outline"
                                     size="sm"
                                     className="text-destructive hover:text-destructive"
                                     onClick={() => handleCancelAppointment(appointment.id)}
@@ -347,7 +355,7 @@ const ProfilePage = () => {
                   </CardContent>
                 </Card>
               </TabsContent>
-              
+
               <TabsContent value="history">
                 <Card>
                   <CardHeader>
@@ -373,7 +381,7 @@ const ProfilePage = () => {
                                       </p>
                                     </div>
                                   </div>
-                                  
+
                                   <div className="flex gap-4">
                                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
                                       <CalendarDays className="h-4 w-4" />
@@ -387,7 +395,7 @@ const ProfilePage = () => {
                                     </div>
                                   </div>
                                 </div>
-                                
+
                                 <div className="flex flex-col md:items-end justify-between">
                                   <p className="font-medium text-muted-foreground">
                                     {formatCurrency(appointment.price)}
@@ -413,7 +421,7 @@ const ProfilePage = () => {
                   </CardContent>
                 </Card>
               </TabsContent>
-              
+
               <TabsContent value="settings">
                 <Card>
                   <CardHeader>
@@ -426,19 +434,19 @@ const ProfilePage = () => {
                     <form className="space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="name">Nome completo</Label>
-                        <Input 
+                        <Input
                           id="name"
-                          name="name" 
+                          name="name"
                           value={userProfile.name}
                           onChange={handleInputChange}
                         />
                       </div>
-                      
+
                       <div className="space-y-2">
                         <Label htmlFor="email">E-mail</Label>
-                        <Input 
+                        <Input
                           id="email"
-                          name="email" 
+                          name="email"
                           type="email"
                           value={userProfile.email}
                           readOnly
@@ -446,20 +454,20 @@ const ProfilePage = () => {
                           className="bg-muted"
                         />
                       </div>
-                      
+
                       <div className="space-y-2">
                         <Label htmlFor="phone">Telefone</Label>
-                        <Input 
+                        <Input
                           id="phone"
                           name="phone"
                           value={userProfile.phone}
                           onChange={handleInputChange}
                         />
                       </div>
-                      
+
                       <div className="pt-4 flex justify-between">
-                        <Button 
-                          type="button" 
+                        <Button
+                          type="button"
                           variant="outline"
                           className="text-destructive hover:text-destructive"
                           onClick={handleLogout}
@@ -467,8 +475,8 @@ const ProfilePage = () => {
                           <LogOut className="mr-2 h-4 w-4" />
                           Sair
                         </Button>
-                        <Button 
-                          type="button" 
+                        <Button
+                          type="button"
                           onClick={handleSaveProfile}
                           className="beauty-button"
                         >
