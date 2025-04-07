@@ -61,6 +61,8 @@ serve(async (req) => {
 
     switch (action) {
       case "create_professional":
+        console.log("Creating new professional:", { email, name });
+        
         // Create a new professional user
         const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
           email,
@@ -70,16 +72,39 @@ serve(async (req) => {
         });
 
         if (createError) {
+          console.error("Error creating user:", createError);
           throw createError;
         }
 
-        // Create professional record
+        // Create or update the profile
         if (newUser.user) {
-          await supabase.from("professionals").insert({
-            id: newUser.user.id,
-            bio: "Profissional experiente em diversos serviços de beleza.",
-            active: true
-          });
+          console.log("Created user:", newUser.user.id);
+          
+          // Update profile with role
+          const { error: profileUpdateError } = await supabase
+            .from("profiles")
+            .upsert({ 
+              id: newUser.user.id,
+              name,
+              role: "professional"
+            });
+            
+          if (profileUpdateError) {
+            console.error("Error updating profile:", profileUpdateError);
+          }
+
+          // Create professional record
+          const { error: professionalError } = await supabase
+            .from("professionals")
+            .insert({
+              id: newUser.user.id,
+              bio: "Profissional experiente em diversos serviços de beleza.",
+              active: true
+            });
+            
+          if (professionalError) {
+            console.error("Error creating professional:", professionalError);
+          }
           
           // Get all available services to associate by default
           const { data: allServices } = await supabase
@@ -93,7 +118,13 @@ serve(async (req) => {
               service_id: service.id
             }));
             
-            await supabase.from("professional_services").insert(professionalServices);
+            const { error: servicesError } = await supabase
+              .from("professional_services")
+              .insert(professionalServices);
+              
+            if (servicesError) {
+              console.error("Error associating services:", servicesError);
+            }
           }
           
           // Add default availability (Mon-Fri, 9am to 6pm)
@@ -105,7 +136,13 @@ serve(async (req) => {
             { day_of_week: 5, start_time: "09:00", end_time: "18:00", professional_id: newUser.user.id }
           ];
           
-          await supabase.from("availability").insert(defaultAvailability);
+          const { error: availabilityError } = await supabase
+            .from("availability")
+            .insert(defaultAvailability);
+            
+          if (availabilityError) {
+            console.error("Error adding availability:", availabilityError);
+          }
         }
 
         responseData = { success: true, user: newUser.user };
@@ -194,6 +231,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
+    console.error("Error in manage-users function:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

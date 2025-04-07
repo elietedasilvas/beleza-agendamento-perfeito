@@ -16,24 +16,25 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Edit, Trash2, ShieldCheck, CalendarIcon } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Edit, Trash2, ShieldCheck, CalendarIcon, Plus } from "lucide-react";
+import { toast } from "sonner";
 import { Professional, Service, services, professionals } from "@/data/mockData";
 import { makeUserAdmin, makeUserProfessional } from "@/integrations/supabase/admin-api";
 import { useRole } from "@/hooks/use-role";
+import { supabase } from "@/integrations/supabase/client";
 
 // Importando os componentes de diálogo
 import EditProfessionalDialog from "@/components/admin/professionals/EditProfessionalDialog";
 import DeleteProfessionalDialog from "@/components/admin/professionals/DeleteProfessionalDialog";
 import ScheduleDialog from "@/components/admin/professionals/ScheduleDialog";
 import PromoteUserDialog from "@/components/admin/professionals/PromoteUserDialog";
+import CreateProfessionalDialog from "@/components/admin/professionals/CreateProfessionalDialog";
 
 const generateId = (): string => {
   return Math.random().toString(36).substring(2, 15);
 };
 
 const ProfessionalsAdmin = () => {
-  const { toast } = useToast();
   const { isAdmin } = useRole();
   const [professionalsList, setProfessionalsList] = useState<Professional[]>(
     window.updatedProfessionals || professionals
@@ -45,10 +46,84 @@ const ProfessionalsAdmin = () => {
   const [selectedProfessional, setSelectedProfessional] = useState<Professional | null>(null);
   const [isPromoteDialogOpen, setIsPromoteDialogOpen] = useState(false);
   const [isPromoting, setIsPromoting] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
-    window.updatedProfessionals = professionalsList;
-  }, [professionalsList]);
+    fetchProfessionals();
+  }, []);
+  
+  const fetchProfessionals = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Fetch professional profiles
+      const { data: professionalProfiles, error: profilesError } = await supabase
+        .from("professionals")
+        .select("id, bio, active")
+        .eq("active", true);
+      
+      if (profilesError) throw profilesError;
+      
+      if (professionalProfiles && professionalProfiles.length > 0) {
+        // Get user details for each professional
+        const enhancedProfessionals = await Promise.all(
+          professionalProfiles.map(async (pro) => {
+            // Get profile data
+            const { data: profileData } = await supabase
+              .from("profiles")
+              .select("name, role")
+              .eq("id", pro.id)
+              .single();
+            
+            // Get services for this professional
+            const { data: proServices } = await supabase
+              .from("professional_services")
+              .select("service_id")
+              .eq("professional_id", pro.id);
+            
+            const serviceIds = proServices ? proServices.map(s => s.service_id) : [];
+            
+            return {
+              id: pro.id,
+              name: profileData?.name || "Sem nome",
+              role: profileData?.role || "professional",
+              email: "professional@example.com", // Placeholder, will be updated
+              about: pro.bio || "",
+              services: serviceIds,
+              image: "/placeholder.svg",
+              rating: 5.0,
+              reviewCount: 0,
+              schedule: {}
+            };
+          })
+        );
+        
+        // Update emails if possible 
+        for (let i = 0; i < enhancedProfessionals.length; i++) {
+          try {
+            const { data: userData } = await supabase.auth.admin.getUserById(
+              enhancedProfessionals[i].id
+            );
+            
+            if (userData && userData.user) {
+              enhancedProfessionals[i].email = userData.user.email || "Email não disponível";
+            }
+          } catch (error) {
+            console.error("Error fetching user email:", error);
+          }
+        }
+        
+        setProfessionalsList(enhancedProfessionals);
+        window.updatedProfessionals = enhancedProfessionals;
+      }
+    } catch (error) {
+      console.error("Error fetching professionals:", error);
+      toast.error("Erro ao carregar profissionais");
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   // Handlers para o diálogo de edição
   const openEditDialog = (professional: Professional) => {
@@ -79,10 +154,7 @@ const ProfessionalsAdmin = () => {
         )
       );
       
-      toast({
-        title: "Profissional atualizado",
-        description: `Profissional ${data.name} atualizado com sucesso.`,
-      });
+      toast.success(`Profissional ${data.name} atualizado com sucesso.`);
     } else {
       const newProfessional = {
         id: generateId(),
@@ -99,10 +171,7 @@ const ProfessionalsAdmin = () => {
       
       setProfessionalsList([...professionalsList, newProfessional]);
       
-      toast({
-        title: "Profissional criado",
-        description: `Profissional ${data.name} criado com sucesso.`,
-      });
+      toast.success(`Profissional ${data.name} criado com sucesso.`);
     }
     
     closeEditDialog();
@@ -128,10 +197,7 @@ const ProfessionalsAdmin = () => {
       )
     );
     
-    toast({
-      title: "Profissional excluído",
-      description: `Profissional ${editingProfessional.name} excluído com sucesso.`,
-    });
+    toast.success(`Profissional ${editingProfessional.name} excluído com sucesso.`);
     
     closeDeleteDialog();
   };
@@ -157,10 +223,7 @@ const ProfessionalsAdmin = () => {
       p.id === selectedProfessional.id ? updatedProfessional : p
     ));
     
-    toast({
-      title: "Agenda atualizada",
-      description: `Horários de ${day} para ${selectedProfessional.name} atualizados com sucesso.`,
-    });
+    toast.success(`Horários de ${day} para ${selectedProfessional.name} atualizados com sucesso.`);
   };
   
   // Handlers para o diálogo de promoção
@@ -182,19 +245,12 @@ const ProfessionalsAdmin = () => {
       
       await makeUserAdmin(editingProfessional.id);
       
-      toast({
-        title: "Usuário promovido",
-        description: `${editingProfessional.name} foi promovido para administrador com sucesso.`,
-      });
+      toast.success(`${editingProfessional.name} foi promovido para administrador com sucesso.`);
       
       closePromoteDialog();
     } catch (error) {
       console.error("Erro ao promover usuário:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível promover o usuário para administrador.",
-        variant: "destructive",
-      });
+      toast.error("Não foi possível promover o usuário para administrador.");
     } finally {
       setIsPromoting(false);
     }
@@ -208,29 +264,33 @@ const ProfessionalsAdmin = () => {
       
       await makeUserProfessional(editingProfessional.id);
       
-      toast({
-        title: "Papel atualizado",
-        description: `${editingProfessional.name} foi definido como profissional com sucesso.`,
-      });
+      toast.success(`${editingProfessional.name} foi definido como profissional com sucesso.`);
       
       closePromoteDialog();
     } catch (error) {
       console.error("Erro ao definir usuário como profissional:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível definir o usuário como profissional.",
-        variant: "destructive",
-      });
+      toast.error("Não foi possível definir o usuário como profissional.");
     } finally {
       setIsPromoting(false);
     }
   };
+
+  // Handler para o diálogo de criação de profissional
+  const handleCreateSuccess = (newProfessional: any) => {
+    // Recarregar a lista de profissionais após criar um novo
+    fetchProfessionals();
+  };
   
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-playfair font-bold">Gerenciar Profissionais</h1>
-        <p className="text-muted-foreground">Adicione, edite ou exclua profissionais da sua equipe.</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-playfair font-bold">Gerenciar Profissionais</h1>
+          <p className="text-muted-foreground">Adicione, edite ou exclua profissionais da sua equipe.</p>
+        </div>
+        <Button onClick={() => setIsCreateDialogOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" /> Adicionar Profissional
+        </Button>
       </div>
       
       <Card>
@@ -241,57 +301,63 @@ const ProfessionalsAdmin = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Função</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {professionalsList.map((professional) => (
-                <TableRow key={professional.id}>
-                  <TableCell className="font-medium">{professional.name}</TableCell>
-                  <TableCell>{professional.email}</TableCell>
-                  <TableCell>{professional.role}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="icon"
-                        onClick={() => openScheduleDialog(professional)}
-                      >
-                        <CalendarIcon className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="secondary" 
-                        size="icon"
-                        onClick={() => openEditDialog(professional)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="icon"
-                        onClick={() => openPromoteDialog(professional)}
-                      >
-                        <ShieldCheck className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="destructive" 
-                        size="icon"
-                        onClick={() => openDeleteDialog(professional)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          {isLoading ? (
+            <div className="text-center py-4">Carregando profissionais...</div>
+          ) : professionalsList.length === 0 ? (
+            <div className="text-center py-4">Nenhum profissional encontrado.</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Função</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {professionalsList.map((professional) => (
+                  <TableRow key={professional.id}>
+                    <TableCell className="font-medium">{professional.name}</TableCell>
+                    <TableCell>{professional.email}</TableCell>
+                    <TableCell>{professional.role}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="icon"
+                          onClick={() => openScheduleDialog(professional)}
+                        >
+                          <CalendarIcon className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="secondary" 
+                          size="icon"
+                          onClick={() => openEditDialog(professional)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="icon"
+                          onClick={() => openPromoteDialog(professional)}
+                        >
+                          <ShieldCheck className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="destructive" 
+                          size="icon"
+                          onClick={() => openDeleteDialog(professional)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
       
@@ -327,6 +393,12 @@ const ProfessionalsAdmin = () => {
         onPromoteAdmin={handlePromoteToAdmin}
         onMakeProfessional={handleMakeProfessional}
         isPromoting={isPromoting}
+      />
+
+      <CreateProfessionalDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+        onSuccess={handleCreateSuccess}
       />
     </div>
   );

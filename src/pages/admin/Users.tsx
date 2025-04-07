@@ -203,7 +203,7 @@ const UsersAdmin = () => {
         user={selectedUser}
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
-        onMakeAdmin={handleMakeAdmin}
+        onPromoteAdmin={handleMakeAdmin}
         onMakeProfessional={handleMakeProfessional}
         isPromoting={isPromoting}
       />

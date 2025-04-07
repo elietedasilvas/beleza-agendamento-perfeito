@@ -56,6 +56,38 @@ export const makeUserProfessional = async (userId: string) => {
 };
 
 /**
+ * Cria um novo profissional no sistema
+ * @param professionalData Dados do profissional a ser criado
+ * @returns Promise com o resultado da operação
+ */
+export const createProfessional = async (professionalData: {
+  name: string;
+  email: string;
+  password: string;
+}) => {
+  const { data: sessionData } = await supabase.auth.getSession();
+  
+  if (!sessionData.session) {
+    throw new Error("Usuário não está autenticado");
+  }
+  
+  const { data, error } = await supabase.functions.invoke("manage-users", {
+    body: {
+      action: "create_professional",
+      name: professionalData.name,
+      email: professionalData.email,
+      password: professionalData.password
+    }
+  });
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data;
+};
+
+/**
  * Adiciona um novo serviço ao sistema
  * @param serviceData Dados do serviço a ser adicionado
  * @returns Promise com o resultado da operação
