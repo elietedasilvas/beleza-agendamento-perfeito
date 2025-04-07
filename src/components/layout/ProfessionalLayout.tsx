@@ -1,16 +1,20 @@
 
-import { Navigate, Outlet } from "react-router-dom";
-import { useProfessionalAuth } from "@/contexts/ProfessionalAuthContext";
+import { Outlet } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { LogOut, User, Calendar, Home, Users } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRole } from "@/hooks/use-role";
 
 const ProfessionalLayout = () => {
-  const { professionalAuth, logout } = useProfessionalAuth();
+  const { user, logout } = useAuth();
+  const { role, isLoading } = useRole();
 
-  // Redirecionar para página de login se não estiver autenticado
-  if (!professionalAuth?.isAuthenticated) {
-    return <Navigate to="/professional/login" replace />;
+  // If the user is not a professional, professional auth will handle the redirect
+  if (isLoading) {
+    return <div className="flex items-center justify-center min-h-screen">
+      <p>Carregando...</p>
+    </div>;
   }
 
   return (
@@ -20,7 +24,7 @@ const ProfessionalLayout = () => {
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center gap-2">
             <User className="h-5 w-5" />
-            <span className="font-medium">{professionalAuth.name}</span>
+            <span className="font-medium">{user?.user_metadata?.name || "Profissional"}</span>
           </div>
           <div className="flex items-center gap-4">
             <Link to="/professional" className="text-sm flex items-center gap-1 hover:underline">

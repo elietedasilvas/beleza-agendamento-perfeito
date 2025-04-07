@@ -14,9 +14,11 @@ import {
   SidebarMenuButton,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { useAuth } from "@/contexts/AuthContext";
 
 const AdminSidebar = () => {
   const location = useLocation();
+  const { logout } = useAuth();
   
   const isActive = (path: string) => {
     return location.pathname === path;
@@ -94,7 +96,10 @@ const AdminSidebar = () => {
             <Home className="w-4 h-4" />
             <span>Voltar ao Site</span>
           </Link>
-          <button className="flex items-center gap-2 text-destructive p-2 w-full text-left rounded-md hover:bg-accent">
+          <button 
+            className="flex items-center gap-2 text-destructive p-2 w-full text-left rounded-md hover:bg-accent"
+            onClick={logout}
+          >
             <LogOut className="w-4 h-4" />
             <span>Sair</span>
           </button>

@@ -1,7 +1,6 @@
 
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Layout from "./components/layout/Layout";
@@ -12,6 +11,8 @@ import ProfessionalsPage from "./pages/Professionals";
 import BookingPage from "./pages/Booking";
 import ProfilePage from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import AuthPage from "./pages/Auth";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 
 // Admin pages
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -27,29 +28,32 @@ import ProfessionalDashboard from "./pages/professional/Dashboard";
 import ProfessionalSchedule from "./pages/professional/Schedule";
 import ProfessionalClients from "./pages/professional/Clients";
 
-// Contexts
-import { ProfessionalAuthProvider } from "./contexts/ProfessionalAuthContext";
+// Auth Context
+import { AuthProvider } from "./contexts/AuthContext";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ProfessionalAuthProvider>
+    <AuthProvider>
       <BrowserRouter>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <Routes>
-            {/* Client-facing routes */}
-            <Route path="/" element={<Layout />}>
-              <Route index element={<HomePage />} />
-              <Route path="professionals" element={<ProfessionalsPage />} />
-              <Route path="booking/:professionalId?" element={<BookingPage />} />
-              <Route path="profile" element={<ProfilePage />} />
-              <Route path="*" element={<NotFound />} />
-            </Route>
-            
-            {/* Admin routes */}
+        <Toaster />
+        <Sonner />
+        <Routes>
+          {/* Auth route */}
+          <Route path="/auth" element={<AuthPage />} />
+
+          {/* Client-facing routes */}
+          <Route path="/" element={<Layout />}>
+            <Route index element={<HomePage />} />
+            <Route path="professionals" element={<ProfessionalsPage />} />
+            <Route path="booking/:professionalId?" element={<BookingPage />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="*" element={<NotFound />} />
+          </Route>
+          
+          {/* Admin routes - protected */}
+          <Route element={<ProtectedRoute requiredRole="admin" />}>
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboard />} />
               <Route path="services" element={<AdminServices />} />
@@ -58,19 +62,20 @@ const App = () => (
               <Route path="schedule" element={<AdminSchedule />} />
               <Route path="settings" element={<AdminSettings />} />
             </Route>
+          </Route>
 
-            {/* Professional routes */}
-            <Route path="/professional/login" element={<ProfessionalLogin />} />
+          {/* Professional routes - protected */}
+          <Route element={<ProtectedRoute requiredRole="professional" />}>
             <Route path="/professional" element={<ProfessionalLayout />}>
               <Route index element={<ProfessionalDashboard />} />
               <Route path="dashboard" element={<ProfessionalDashboard />} />
               <Route path="schedule" element={<ProfessionalSchedule />} />
               <Route path="clients" element={<ProfessionalClients />} />
             </Route>
-          </Routes>
-        </TooltipProvider>
+          </Route>
+        </Routes>
       </BrowserRouter>
-    </ProfessionalAuthProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
