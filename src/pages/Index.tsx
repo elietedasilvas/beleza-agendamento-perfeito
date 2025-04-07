@@ -4,8 +4,9 @@ import { ChevronRight, Star, Clock, CalendarDays, BadgeCheck, Scissors } from "l
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { professionals, formatCurrency, formatDuration } from "@/data/mockData";
+import { formatCurrency, formatDuration } from "@/data/mockData";
 import { supabase } from "@/integrations/supabase/client";
+import { Service } from "@/types/global.d";
 
 const HeroSection = () => {
   return (
@@ -163,7 +164,51 @@ const ServiceSection = () => {
 };
 
 const ProfessionalsSection = () => {
-  const featuredProfessionals = professionals.slice(0, 4);
+  const [professionals, setProfessionals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    async function fetchProfessionals() {
+      try {
+        setLoading(true);
+        
+        const { data: professionalData, error: professionalError } = await supabase
+          .from("professionals")
+          .select(`
+            id,
+            bio,
+            active,
+            profiles:id(id, name, avatar_url)
+          `)
+          .eq("active", true)
+          .limit(4);
+          
+        if (professionalError) {
+          console.error("Error fetching professionals:", professionalError);
+          return;
+        }
+        
+        const formattedProfessionals = professionalData.map(prof => ({
+          id: prof.id,
+          name: prof.profiles?.name || "Profissional",
+          image: prof.profiles?.avatar_url || "https://images.unsplash.com/photo-1580489944761-15a19d654956?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
+          bio: prof.bio || "Especialista em beleza e bem-estar",
+          role: "Profissional",
+          rating: 5.0,
+          reviewCount: 0,
+          active: prof.active
+        }));
+        
+        setProfessionals(formattedProfessionals);
+      } catch (error) {
+        console.error("Error in ProfessionalsSection:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    fetchProfessionals();
+  }, []);
   
   return (
     <section className="py-16">
@@ -175,34 +220,45 @@ const ProfessionalsSection = () => {
           </p>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {featuredProfessionals.map(professional => (
-            <Card key={professional.id} className="beauty-card relative group overflow-hidden">
-              <div className="aspect-square overflow-hidden">
-                <img 
-                  src={professional.image} 
-                  alt={professional.name} 
-                  className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
-                />
-              </div>
-              <CardContent className="p-4 text-center">
-                <h3 className="font-bold text-lg mb-1">{professional.name}</h3>
-                <p className="text-sm text-muted-foreground mb-2">{professional.role}</p>
-                <div className="flex items-center justify-center gap-1 mb-3">
-                  <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                  <span>{professional.rating}</span>
-                  <span className="text-xs text-muted-foreground">({professional.reviewCount} avaliações)</span>
+        {loading ? (
+          <div className="text-center py-12">Carregando profissionais...</div>
+        ) : professionals.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Nenhum profissional encontrado.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {professionals.map(professional => (
+              <Card key={professional.id} className="beauty-card relative group overflow-hidden">
+                <div className="aspect-square overflow-hidden">
+                  <img 
+                    src={professional.image} 
+                    alt={professional.name} 
+                    className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
+                    onError={(e) => {
+                      e.currentTarget.src = 'https://images.unsplash.com/photo-1580489944761-15a19d654956?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80';
+                    }}
+                  />
                 </div>
-                <Button asChild variant="outline" className="w-full beauty-button">
-                  <Link to={`/booking/${professional.id}`}>
-                    <CalendarDays className="mr-2 h-4 w-4" />
-                    Agendar
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                <CardContent className="p-4 text-center">
+                  <h3 className="font-bold text-lg mb-1">{professional.name}</h3>
+                  <p className="text-sm text-muted-foreground mb-2">{professional.role}</p>
+                  <div className="flex items-center justify-center gap-1 mb-3">
+                    <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                    <span>{professional.rating}</span>
+                    <span className="text-xs text-muted-foreground">({professional.reviewCount} avaliações)</span>
+                  </div>
+                  <Button asChild variant="outline" className="w-full beauty-button">
+                    <Link to={`/booking/${professional.id}`}>
+                      <CalendarDays className="mr-2 h-4 w-4" />
+                      Agendar
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
         
         <div className="text-center mt-10">
           <Button asChild className="beauty-button">

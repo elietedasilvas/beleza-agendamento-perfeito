@@ -1,5 +1,6 @@
 
 import { supabase } from "./client";
+import { Service } from "@/types/global.d";
 
 /**
  * Promove um usuário para administrador
@@ -92,17 +93,24 @@ export const createProfessional = async (professionalData: {
  * @param serviceData Dados do serviço a ser adicionado
  * @returns Promise com o resultado da operação
  */
-export const addService = async (serviceData: any) => {
+export const addService = async (serviceData: Partial<Service>) => {
   const { data: sessionData } = await supabase.auth.getSession();
   
   if (!sessionData.session) {
     throw new Error("Usuário não está autenticado");
   }
   
+  // Garantir que o serviço tem categoria e imagem padrão se não fornecidos
+  const completeServiceData = {
+    ...serviceData,
+    category: serviceData.category || "all",
+    image: serviceData.image || "https://images.unsplash.com/photo-1560066984-138dadb4c035?ixlib=rb-1.2.1&auto=format&fit=crop&w=1200&q=80"
+  };
+  
   // 1. Adicionar o serviço à tabela de serviços
   const { data, error } = await supabase
     .from("services")
-    .insert(serviceData)
+    .insert(completeServiceData)
     .select()
     .single();
   
