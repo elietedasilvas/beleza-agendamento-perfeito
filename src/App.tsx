@@ -25,6 +25,7 @@ import AdminSchedule from "./pages/admin/Schedule";
 import ProfessionalLogin from "./pages/professional/Login";
 import ProfessionalDashboard from "./pages/professional/Dashboard";
 import ProfessionalSchedule from "./pages/professional/Schedule";
+import ProfessionalClients from "./pages/professional/Clients";
 
 // Contexts
 import { ProfessionalAuthProvider } from "./contexts/ProfessionalAuthContext";
@@ -64,6 +65,7 @@ const App = () => (
               <Route index element={<ProfessionalDashboard />} />
               <Route path="dashboard" element={<ProfessionalDashboard />} />
               <Route path="schedule" element={<ProfessionalSchedule />} />
+              <Route path="clients" element={<ProfessionalClients />} />
             </Route>
           </Routes>
         </BrowserRouter>

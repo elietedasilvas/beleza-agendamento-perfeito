@@ -3,7 +3,7 @@ import { Navigate, Outlet } from "react-router-dom";
 import { useProfessionalAuth } from "@/contexts/ProfessionalAuthContext";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
-import { LogOut, User, Calendar, Home } from "lucide-react";
+import { LogOut, User, Calendar, Home, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const ProfessionalLayout = () => {
@@ -31,6 +31,10 @@ const ProfessionalLayout = () => {
             <Link to="/professional/schedule" className="text-sm flex items-center gap-1 hover:underline">
               <Calendar className="h-4 w-4" />
               <span>Disponibilidade</span>
+            </Link>
+            <Link to="/professional/clients" className="text-sm flex items-center gap-1 hover:underline">
+              <Users className="h-4 w-4" />
+              <span>Clientes</span>
             </Link>
             <Link to="/" className="text-sm flex items-center gap-1 hover:underline">
               <Home className="h-4 w-4" />
