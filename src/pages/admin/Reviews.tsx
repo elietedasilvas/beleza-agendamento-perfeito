@@ -53,18 +53,7 @@ const ReviewsAdminPage = () => {
       // Buscar as avaliações
       const { data, error } = await supabase
         .from("reviews")
-        .select(`
-          id,
-          rating,
-          comment,
-          status,
-          created_at,
-          updated_at,
-          client_id,
-          professional_id,
-          appointment_id,
-          appointment:appointment_id(service:service_id(name))
-        `)
+        .select("*, appointment:appointment_id(service:service_id(name))")
         .order("created_at", { ascending: false });
 
       // Garantir que todas as avaliações tenham um status definido

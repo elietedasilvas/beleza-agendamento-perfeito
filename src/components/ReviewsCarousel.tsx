@@ -34,14 +34,7 @@ export function ReviewsCarousel() {
         // Buscar avaliações aprovadas
         const { data, error } = await supabase
           .from("reviews")
-          .select(`
-            id,
-            rating,
-            comment,
-            client_id,
-            professional_id,
-            appointment:appointment_id(service:service_id(name))
-          `)
+          .select("*, appointment:appointment_id(service:service_id(name))")
           .eq("status", "approved")
           .order("created_at", { ascending: false })
           .limit(10);
