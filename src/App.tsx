@@ -18,6 +18,7 @@ import ProtectedRoute from "./components/auth/ProtectedRoute";
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminServices from "./pages/admin/Services";
 import AdminProfessionals from "./pages/admin/Professionals";
+import AdminUsers from "./pages/admin/Users";
 import AdminAppointments from "./pages/admin/Appointments";
 import AdminSettings from "./pages/admin/Settings";
 import AdminSchedule from "./pages/admin/Schedule";
@@ -58,6 +59,7 @@ const App = () => (
               <Route index element={<AdminDashboard />} />
               <Route path="services" element={<AdminServices />} />
               <Route path="professionals" element={<AdminProfessionals />} />
+              <Route path="users" element={<AdminUsers />} />
               <Route path="appointments" element={<AdminAppointments />} />
               <Route path="schedule" element={<AdminSchedule />} />
               <Route path="settings" element={<AdminSettings />} />

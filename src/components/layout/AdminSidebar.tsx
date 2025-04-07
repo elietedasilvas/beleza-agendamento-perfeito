@@ -1,6 +1,6 @@
 
 import { Link, useLocation } from "react-router-dom";
-import { Calendar, Users, Scissors, Home, Settings, LogOut, Clock } from "lucide-react";
+import { Calendar, Users, Scissors, Home, Settings, LogOut, Clock, User } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -59,6 +59,14 @@ const AdminSidebar = () => {
                   <Link to="/admin/professionals">
                     <Users className="w-4 h-4" />
                     <span>Profissionais</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild className={isActive("/admin/users") ? "bg-primary/10 text-primary" : ""}>
+                  <Link to="/admin/users">
+                    <User className="w-4 h-4" />
+                    <span>Usuários</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
