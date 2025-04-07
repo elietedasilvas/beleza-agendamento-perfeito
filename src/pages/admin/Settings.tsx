@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   Form,
@@ -174,189 +173,185 @@ const SettingsAdmin = () => {
                   <CardDescription>Configure as informações principais do seu salão.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="salonName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome do Salão</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  <FormField
+                    control={form.control}
+                    name="salonName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nome do Salão</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="address"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Endereço</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Telefone</FormLabel>
-                      <FormControl>
-                        <div className="flex">
-                          <div className="bg-muted flex items-center px-3 rounded-l-md border border-r-0">
-                            <Phone className="h-4 w-4 text-muted-foreground" />
+                  <FormField
+                    control={form.control}
+                    name="address"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Endereço</FormLabel>
+                        <FormControl>
+                          <div className="flex">
+                            <div className="bg-muted flex items-center px-3 rounded-l-md border border-r-0">
+                              <MapPin className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                            <Input className="rounded-l-none" {...field} />
                           </div>
-                          <Input className="rounded-l-none" {...field} />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>E-mail</FormLabel>
-                      <FormControl>
-                        <div className="flex">
-                          <div className="bg-muted flex items-center px-3 rounded-l-md border border-r-0">
-                            <Mail className="h-4 w-4 text-muted-foreground" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="phone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Telefone</FormLabel>
+                          <FormControl>
+                            <div className="flex">
+                              <div className="bg-muted flex items-center px-3 rounded-l-md border border-r-0">
+                                <Phone className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                              <Input className="rounded-l-none" {...field} />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>E-mail</FormLabel>
+                          <FormControl>
+                            <div className="flex">
+                              <div className="bg-muted flex items-center px-3 rounded-l-md border border-r-0">
+                                <Mail className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                              <Input className="rounded-l-none" {...field} />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="instagram"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Instagram</FormLabel>
+                          <FormControl>
+                            <div className="flex">
+                              <div className="bg-muted flex items-center px-3 rounded-l-md border border-r-0">
+                                <Instagram className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                              <Input className="rounded-l-none" {...field} />
+                            </div>
+                          </FormControl>
+                          <FormDescription className="text-xs">
+                            Apenas o nome de usuário
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="facebook"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Facebook</FormLabel>
+                          <FormControl>
+                            <div className="flex">
+                              <div className="bg-muted flex items-center px-3 rounded-l-md border border-r-0">
+                                <Facebook className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                              <Input className="rounded-l-none" {...field} />
+                            </div>
+                          </FormControl>
+                          <FormDescription className="text-xs">
+                            Apenas o nome de usuário
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="twitter"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Twitter</FormLabel>
+                          <FormControl>
+                            <div className="flex">
+                              <div className="bg-muted flex items-center px-3 rounded-l-md border border-r-0">
+                                <Twitter className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                              <Input className="rounded-l-none" {...field} />
+                            </div>
+                          </FormControl>
+                          <FormDescription className="text-xs">
+                            Apenas o nome de usuário
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="website"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Website</FormLabel>
+                        <FormControl>
+                          <div className="flex">
+                            <div className="bg-muted flex items-center px-3 rounded-l-md border border-r-0">
+                              <Globe className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                            <Input className="rounded-l-none" {...field} />
                           </div>
-                          <Input className="rounded-l-none" {...field} />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="website"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Website</FormLabel>
-                    <FormControl>
-                      <div className="flex">
-                        <div className="bg-muted flex items-center px-3 rounded-l-md border border-r-0">
-                          <Globe className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                        <Input className="rounded-l-none" {...field} />
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="aboutText"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Sobre o Salão</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Descreva seu salão..."
-                        className="h-32"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Redes Sociais</CardTitle>
-              <CardDescription>Configure suas redes sociais.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <FormField
-                  control={form.control}
-                  name="instagram"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Instagram</FormLabel>
-                      <FormControl>
-                        <div className="flex">
-                          <div className="bg-muted flex items-center px-3 rounded-l-md border border-r-0">
-                            <Instagram className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                          <Input className="rounded-l-none" {...field} />
-                        </div>
-                      </FormControl>
-                      <FormDescription className="text-xs">
-                        Apenas o nome de usuário
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="facebook"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Facebook</FormLabel>
-                      <FormControl>
-                        <div className="flex">
-                          <div className="bg-muted flex items-center px-3 rounded-l-md border border-r-0">
-                            <Facebook className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                          <Input className="rounded-l-none" {...field} />
-                        </div>
-                      </FormControl>
-                      <FormDescription className="text-xs">
-                        Nome da página
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="twitter"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Twitter</FormLabel>
-                      <FormControl>
-                        <div className="flex">
-                          <div className="bg-muted flex items-center px-3 rounded-l-md border border-r-0">
-                            <Twitter className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                          <Input className="rounded-l-none" {...field} />
-                        </div>
-                      </FormControl>
-                      <FormDescription className="text-xs">
-                        Apenas o nome de usuário
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
+                  <FormField
+                    control={form.control}
+                    name="aboutText"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Sobre o Salão</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Descreva seu salão..."
+                            className="h-32"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="homepage">
@@ -480,79 +475,77 @@ const SettingsAdmin = () => {
                       )}
                     />
 
-                <FormField
-                  control={form.control}
-                  name="openingHours.wednesday"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Quarta-feira</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="openingHours.wednesday"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Quarta-feira</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="openingHours.thursday"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Quinta-feira</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="openingHours.thursday"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Quinta-feira</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="openingHours.friday"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Sexta-feira</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="openingHours.friday"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Sexta-feira</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="openingHours.saturday"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Sábado</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="openingHours.saturday"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Sábado</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="openingHours.sunday"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Domingo</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
+                    <FormField
+                      control={form.control}
+                      name="openingHours.sunday"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Domingo</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </CardContent>
               </Card>
             </TabsContent>
 
