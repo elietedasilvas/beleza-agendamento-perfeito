@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Professional, Service } from "@/data/mockData";
 import {
   Dialog,
@@ -75,7 +75,7 @@ const EditProfessionalDialog = ({
   });
 
   // Update form values when professional changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (professional) {
       form.setValue("name", professional.name);
       form.setValue("email", professional.email);
