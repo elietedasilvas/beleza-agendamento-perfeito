@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { 
   Card, 
@@ -48,20 +49,17 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useForm } from "react-hook-form";
 import { professionals, Professional } from "@/data/mockData";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, User, Calendar as CalendarIcon, Save } from "lucide-react";
+import { Clock, User, Calendar as CalendarIcon, Save, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import ScheduleDialog from "@/components/admin/professionals/ScheduleDialog";
 
 const ScheduleAdmin = () => {
   const { toast } = useToast();
-  const [professionalsList, setProfessionalsList] = useState<Professional[]>(
-    window.updatedProfessionals || professionals
-  );
+  const [professionalsList, setProfessionalsList] = useState<Professional[]>([]);
   const [selectedProfessional, setSelectedProfessional] = useState<Professional | null>(null);
   const [selectedDay, setSelectedDay] = useState("Segunda");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  
-  useEffect(() => {
-    window.updatedProfessionals = professionalsList;
-  }, [professionalsList]);
+  const [isLoading, setIsLoading] = useState(true);
   
   const form = useForm({
     defaultValues: {
@@ -77,6 +75,107 @@ const ScheduleAdmin = () => {
   const daysOfWeek = [
     "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"
   ];
+
+  // Função para buscar os profissionais do Supabase
+  const fetchProfessionals = async () => {
+    setIsLoading(true);
+    try {
+      // Primeiro, buscamos os profissionais
+      const { data: professionalsData, error: professionalsError } = await supabase
+        .from("professionals")
+        .select("id, active")
+        .eq("active", true);
+      
+      if (professionalsError) {
+        throw professionalsError;
+      }
+
+      // Depois, buscamos os perfis associados a esses profissionais
+      if (professionalsData && professionalsData.length > 0) {
+        const professionalIds = professionalsData.map(prof => prof.id);
+        
+        const { data: profilesData, error: profilesError } = await supabase
+          .from("profiles")
+          .select("id, name, avatar_url, role")
+          .in("id", professionalIds)
+          .eq("role", "professional");
+        
+        if (profilesError) {
+          throw profilesError;
+        }
+
+        // Agora, buscamos as disponibilidades para cada profissional
+        const updatedProfessionals: Professional[] = [];
+        
+        // Para cada profissional, vamos buscar sua disponibilidade
+        for (const professional of professionalsData) {
+          const profile = profilesData?.find(p => p.id === professional.id);
+          
+          if (profile) {
+            const { data: availabilityData, error: availabilityError } = await supabase
+              .from("availability")
+              .select("day_of_week, start_time")
+              .eq("professional_id", professional.id);
+              
+            if (availabilityError) {
+              console.error("Erro ao buscar disponibilidade:", availabilityError);
+              continue;
+            }
+            
+            // Converter os dados de disponibilidade para o formato esperado
+            // Mapear dia da semana de número para nome
+            const schedule: { [key: string]: string[] } = {};
+            const dayNumberToName: { [key: number]: string } = {
+              0: "Domingo",
+              1: "Segunda",
+              2: "Terça",
+              3: "Quarta",
+              4: "Quinta", 
+              5: "Sexta",
+              6: "Sábado"
+            };
+            
+            // Organizar horários por dia da semana
+            if (availabilityData) {
+              availabilityData.forEach(slot => {
+                const dayName = dayNumberToName[slot.day_of_week];
+                if (!schedule[dayName]) {
+                  schedule[dayName] = [];
+                }
+                schedule[dayName].push(slot.start_time);
+              });
+            }
+            
+            updatedProfessionals.push({
+              id: professional.id,
+              name: profile.name || "Sem nome",
+              role: "Professional",
+              image: profile.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-1.2.1&auto=format&fit=crop&w=1200&q=80",
+              schedule: schedule,
+              specialty: "",
+              description: "",
+              available: professional.active
+            });
+          }
+        }
+        
+        setProfessionalsList(updatedProfessionals);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar profissionais:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os profissionais. Tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProfessionals();
+  }, []);
   
   const onProfessionalChange = (professionalId: string) => {
     const professional = professionalsList.find(p => p.id === professionalId) || null;
@@ -117,6 +216,27 @@ const ScheduleAdmin = () => {
       description: `Horários de ${selectedDay} para ${selectedProfessional.name} atualizados com sucesso.`,
     });
   };
+
+  const onUpdateSchedule = (day: string, updatedTimes: string[]) => {
+    if (!selectedProfessional) return;
+    
+    // Atualiza o profissional selecionado
+    const updatedProfessional = { ...selectedProfessional };
+    updatedProfessional.schedule = { ...updatedProfessional.schedule, [day]: updatedTimes };
+    
+    // Atualiza a lista completa de profissionais
+    setProfessionalsList(professionalsList.map(p => 
+      p.id === selectedProfessional.id ? updatedProfessional : p
+    ));
+    
+    // Atualiza o profissional selecionado
+    setSelectedProfessional(updatedProfessional);
+    
+    toast({
+      title: "Agenda atualizada",
+      description: `Horários de ${day} para ${selectedProfessional.name} atualizados com sucesso.`,
+    });
+  };
   
   const getAvailableTimeSlots = (professional: Professional, day: string) => {
     return professional.schedule[day] || [];
@@ -142,21 +262,32 @@ const ScheduleAdmin = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Select onValueChange={onProfessionalChange}>
-            <SelectTrigger className="w-full sm:w-[300px]">
-              <SelectValue placeholder="Selecione um profissional" />
-            </SelectTrigger>
-            <SelectContent>
-              {professionalsList.map(professional => (
-                <SelectItem key={professional.id} value={professional.id}>
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    <span>{professional.name}</span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-3">Carregando profissionais...</span>
+            </div>
+          ) : professionalsList.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">Nenhum profissional encontrado. Adicione profissionais na seção Profissionais.</p>
+            </div>
+          ) : (
+            <Select onValueChange={onProfessionalChange}>
+              <SelectTrigger className="w-full sm:w-[300px]">
+                <SelectValue placeholder="Selecione um profissional" />
+              </SelectTrigger>
+              <SelectContent>
+                {professionalsList.map(professional => (
+                  <SelectItem key={professional.id} value={professional.id}>
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      <span>{professional.name}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </CardContent>
       </Card>
       
@@ -231,6 +362,15 @@ const ScheduleAdmin = () => {
         </Card>
       )}
       
+      {selectedProfessional && (
+        <ScheduleDialog
+          professional={selectedProfessional}
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          onUpdateSchedule={onUpdateSchedule}
+        />
+      )}
+
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
