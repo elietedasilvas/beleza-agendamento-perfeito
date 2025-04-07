@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Table, 
   TableBody, 
@@ -18,77 +18,47 @@ import {
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useToast } from "@/hooks/use-toast";
 import { 
   CheckCircle, 
   Clock, 
   Calendar as CalendarIcon, 
   XCircle,
-  Filter
+  Filter,
+  Loader2
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { professionals, services, getServicesByProfessional } from "@/data/mockData";
+import { supabase } from "@/integrations/supabase/client";
+import ProfessionalSelector from "@/components/admin/professionals/ProfessionalSelector";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-// Simulate appointments data
-const mockAppointments = [
-  {
-    id: "1",
-    serviceId: "1",
-    professionalId: "3",
-    client: "Maria Fernandes",
-    phone: "(11) 98765-4321",
-    date: "2025-04-10",
-    time: "14:00",
-    status: "scheduled"
-  },
-  {
-    id: "2",
-    serviceId: "2",
-    professionalId: "2",
-    client: "João Silva",
-    phone: "(11) 91234-5678",
-    date: "2025-04-10",
-    time: "10:00",
-    status: "completed"
-  },
-  {
-    id: "3",
-    serviceId: "3",
-    professionalId: "1",
-    client: "Ana Beatriz",
-    phone: "(11) 99876-5432",
-    date: "2025-04-12",
-    time: "15:00",
-    status: "scheduled"
-  },
-  {
-    id: "4",
-    serviceId: "4",
-    professionalId: "4",
-    client: "Carlos Eduardo",
-    phone: "(11) 94567-8901",
-    date: "2025-04-11",
-    time: "11:00",
-    status: "cancelled"
-  },
-  {
-    id: "5",
-    serviceId: "5",
-    professionalId: "3",
-    client: "Beatriz Almeida",
-    phone: "(11) 98901-2345",
-    date: "2025-04-15",
-    time: "16:00",
-    status: "scheduled"
-  }
-];
+// Define appointment type
+type Appointment = {
+  id: string;
+  client_id: string;
+  service_id: string;
+  professional_id: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  status: string;
+  notes?: string;
+  
+  // For UI display, populated after fetching
+  client_name?: string;
+  client_phone?: string;
+  service_name?: string;
+  professional_name?: string;
+};
 
 const AppointmentsAdmin = () => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [professionalFilter, setProfessionalFilter] = useState<string>("all");
-  const [appointments, setAppointments] = useState(mockAppointments);
   
   // Function to format date for display
   const formatAppointmentDate = (dateString: string) => {
@@ -96,61 +66,162 @@ const AppointmentsAdmin = () => {
     return format(date, "d 'de' MMMM", { locale: ptBR });
   };
   
-  // Filter appointments based on selected filters
-  const filteredAppointments = appointments.filter(appointment => {
-    // Filter by date
+  // Function to fetch appointments from Supabase
+  const fetchAppointments = async () => {
+    let query = supabase
+      .from("appointments")
+      .select(`
+        *,
+        services:service_id (name),
+        professionals:professional_id (id),
+        profiles:professional_id (name)
+      `);
+    
+    // Apply date filter if specified
     if (date) {
-      const appointmentDate = new Date(appointment.date);
-      const selectedDate = new Date(date);
-      
-      if (appointmentDate.toDateString() !== selectedDate.toDateString()) {
-        return false;
-      }
+      const formattedDate = format(date, "yyyy-MM-dd");
+      query = query.eq("date", formattedDate);
     }
     
-    // Filter by status
-    if (statusFilter !== "all" && appointment.status !== statusFilter) {
-      return false;
+    // Apply status filter if not "all"
+    if (statusFilter !== "all") {
+      query = query.eq("status", statusFilter);
     }
     
-    // Filter by professional
-    if (professionalFilter !== "all" && appointment.professionalId !== professionalFilter) {
-      return false;
+    // Apply professional filter if not "all"
+    if (professionalFilter !== "all") {
+      query = query.eq("professional_id", professionalFilter);
     }
     
-    return true;
+    const { data, error } = await query;
+    
+    if (error) {
+      throw error;
+    }
+    
+    // Fetch client details for each appointment
+    const appointmentsWithDetails = await Promise.all(
+      (data || []).map(async (appointment) => {
+        const { data: clientData } = await supabase
+          .from("profiles")
+          .select("name, phone")
+          .eq("id", appointment.client_id)
+          .single();
+        
+        return {
+          ...appointment,
+          client_name: clientData?.name || "Cliente não encontrado",
+          client_phone: clientData?.phone || "Telefone não cadastrado",
+          service_name: appointment.services?.name || "Serviço não encontrado",
+          professional_name: appointment.profiles?.name || "Profissional não encontrado",
+        };
+      })
+    );
+    
+    return appointmentsWithDetails;
+  };
+  
+  // Query to fetch appointments
+  const { data: appointments, isLoading, error, refetch } = useQuery({
+    queryKey: ["appointments", date, statusFilter, professionalFilter],
+    queryFn: fetchAppointments,
   });
   
-  // Get service and professional info
-  const getAppointmentDetails = (appointment: (typeof mockAppointments)[0]) => {
-    const service = services.find(s => s.id === appointment.serviceId);
-    const professional = professionals.find(p => p.id === appointment.professionalId);
-    
-    return {
-      service: service?.name || "Serviço não encontrado",
-      professional: professional?.name || "Profissional não encontrado"
+  // Set up real-time subscription for appointments
+  useEffect(() => {
+    const channel = supabase
+      .channel('table-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'appointments'
+        },
+        () => {
+          // Refetch appointments when changes occur
+          refetch();
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
     };
-  };
+  }, [refetch]);
   
-  // Update appointment status
+  // Query to fetch professionals
+  const { data: professionals, isLoading: isLoadingProfessionals } = useQuery({
+    queryKey: ["professionals"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("professionals")
+        .select(`
+          id, 
+          profiles:id (name)
+        `)
+        .eq("active", true);
+      
+      if (error) throw error;
+      
+      return data.map(pro => ({
+        id: pro.id,
+        name: pro.profiles?.name || "Nome não encontrado"
+      }));
+    }
+  });
+  
+  // Mutation to update appointment status
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string, status: string }) => {
+      const { data, error } = await supabase
+        .from("appointments")
+        .update({ status })
+        .eq("id", id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      toast({
+        title: "Status atualizado",
+        description: "O status do agendamento foi atualizado com sucesso."
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao atualizar",
+        description: `Não foi possível atualizar o status: ${error.message}`,
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Function to update appointment status
   const updateStatus = (id: string, newStatus: string) => {
-    setAppointments(appointments.map(appointment => 
-      appointment.id === id ? { ...appointment, status: newStatus } : appointment
-    ));
+    updateStatusMutation.mutate({ id, newStatus });
   };
   
-  // Status badges
+  // Function to get status badge
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "scheduled":
         return <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">Agendado</span>;
       case "completed":
         return <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">Concluído</span>;
-      case "cancelled":
+      case "canceled":
         return <span className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs">Cancelado</span>;
       default:
         return null;
     }
+  };
+  
+  // Handle professional change
+  const handleProfessionalChange = (professionalId: string) => {
+    setProfessionalFilter(professionalId);
   };
   
   return (
@@ -199,23 +270,34 @@ const AppointmentsAdmin = () => {
               <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="scheduled">Agendados</SelectItem>
               <SelectItem value="completed">Concluídos</SelectItem>
-              <SelectItem value="cancelled">Cancelados</SelectItem>
+              <SelectItem value="canceled">Cancelados</SelectItem>
             </SelectContent>
           </Select>
         </div>
         
         <div className="w-48">
-          <Select value={professionalFilter} onValueChange={setProfessionalFilter}>
-            <SelectTrigger>
-              <SelectValue placeholder="Profissional" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos Profissionais</SelectItem>
-              {professionals.map(pro => (
-                <SelectItem key={pro.id} value={pro.id}>{pro.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {isLoadingProfessionals ? (
+            <Select disabled>
+              <SelectTrigger>
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Carregando...</span>
+                </div>
+              </SelectTrigger>
+            </Select>
+          ) : (
+            <Select value={professionalFilter} onValueChange={setProfessionalFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Profissional" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos Profissionais</SelectItem>
+                {professionals?.map(pro => (
+                  <SelectItem key={pro.id} value={pro.id}>{pro.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
         
         {date && (
@@ -244,69 +326,81 @@ const AppointmentsAdmin = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredAppointments.length > 0 ? (
-              filteredAppointments.map(appointment => {
-                const { service, professional } = getAppointmentDetails(appointment);
-                return (
-                  <TableRow key={appointment.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{appointment.client}</p>
-                        <p className="text-xs text-muted-foreground">{appointment.phone}</p>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={6} className="h-24 text-center">
+                  <div className="flex justify-center items-center gap-2">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                    <span>Carregando agendamentos...</span>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : error ? (
+              <TableRow>
+                <TableCell colSpan={6} className="h-24 text-center text-destructive">
+                  Erro ao carregar agendamentos: {(error as Error).message}
+                </TableCell>
+              </TableRow>
+            ) : appointments && appointments.length > 0 ? (
+              appointments.map(appointment => (
+                <TableRow key={appointment.id}>
+                  <TableCell>
+                    <div>
+                      <p className="font-medium">{appointment.client_name}</p>
+                      <p className="text-xs text-muted-foreground">{appointment.client_phone}</p>
+                    </div>
+                  </TableCell>
+                  <TableCell>{appointment.service_name}</TableCell>
+                  <TableCell>{appointment.professional_name}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-1 text-sm">
+                        <CalendarIcon className="h-3 w-3" />
+                        <span>{formatAppointmentDate(appointment.date)}</span>
                       </div>
-                    </TableCell>
-                    <TableCell>{service}</TableCell>
-                    <TableCell>{professional}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <div className="flex items-center gap-1 text-sm">
-                          <CalendarIcon className="h-3 w-3" />
-                          <span>{formatAppointmentDate(appointment.date)}</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <Clock className="h-3 w-3" />
-                          <span>{appointment.time}</span>
-                        </div>
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        <span>{appointment.start_time.substring(0, 5)}</span>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      {getStatusBadge(appointment.status)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        {appointment.status === "scheduled" && (
-                          <>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="h-8 text-xs text-green-600"
-                              onClick={() => updateStatus(appointment.id, "completed")}
-                            >
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              Concluir
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="h-8 text-xs text-red-600"
-                              onClick={() => updateStatus(appointment.id, "cancelled")}
-                            >
-                              <XCircle className="h-3 w-3 mr-1" />
-                              Cancelar
-                            </Button>
-                          </>
-                        )}
-                        {appointment.status === "completed" && (
-                          <span className="text-xs text-muted-foreground italic">Concluído</span>
-                        )}
-                        {appointment.status === "cancelled" && (
-                          <span className="text-xs text-muted-foreground italic">Cancelado</span>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {getStatusBadge(appointment.status)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      {appointment.status === "scheduled" && (
+                        <>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 text-xs text-green-600"
+                            onClick={() => updateStatus(appointment.id, "completed")}
+                          >
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Concluir
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 text-xs text-red-600"
+                            onClick={() => updateStatus(appointment.id, "canceled")}
+                          >
+                            <XCircle className="h-3 w-3 mr-1" />
+                            Cancelar
+                          </Button>
+                        </>
+                      )}
+                      {appointment.status === "completed" && (
+                        <span className="text-xs text-muted-foreground italic">Concluído</span>
+                      )}
+                      {appointment.status === "canceled" && (
+                        <span className="text-xs text-muted-foreground italic">Cancelado</span>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
             ) : (
               <TableRow>
                 <TableCell colSpan={6} className="h-24 text-center">

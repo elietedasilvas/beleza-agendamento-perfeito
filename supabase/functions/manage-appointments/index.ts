@@ -117,6 +117,9 @@ serve(async (req) => {
           throw createError;
         }
 
+        // Enable real-time updates for the appointments table
+        await supabase.rpc('notify_all_changes', { table_name: 'appointments' });
+
         responseData = { success: true, appointment: newAppointment };
         break;
 
@@ -150,6 +153,9 @@ serve(async (req) => {
         if (updateError) {
           throw updateError;
         }
+
+        // Enable real-time updates for the appointments table
+        await supabase.rpc('notify_all_changes', { table_name: 'appointments' });
 
         responseData = { success: true, appointment: updatedAppointment };
         break;
@@ -191,6 +197,9 @@ serve(async (req) => {
         if (cancelError) {
           throw cancelError;
         }
+
+        // Enable real-time updates for the appointments table
+        await supabase.rpc('notify_all_changes', { table_name: 'appointments' });
 
         responseData = { success: true, appointment: canceledAppointment };
         break;
