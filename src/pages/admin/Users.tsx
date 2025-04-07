@@ -64,7 +64,7 @@ const UsersAdmin = () => {
         }
 
         // Obter detalhes dos usuários do Auth
-        const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+        const { data: authUsersData, error: authError } = await supabase.auth.admin.listUsers();
         
         if (authError) {
           console.error("Erro ao buscar detalhes dos usuários:", authError);
@@ -82,7 +82,7 @@ const UsersAdmin = () => {
 
         // Combinar os dados de perfil com emails
         const completeUsers = profiles.map((profile) => {
-          const authUser = authUsers.users.find(user => user.id === profile.id);
+          const authUser = authUsersData?.users?.find(user => user.id === profile.id);
           return {
             ...profile,
             email: authUser?.email || "Email não disponível",
