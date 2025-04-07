@@ -50,26 +50,44 @@ const ReviewsAdminPage = () => {
   const fetchReviews = async () => {
     setLoading(true);
     try {
+      // Buscar as avaliações
       const { data, error } = await supabase
         .from("reviews")
         .select(`
           *,
-          client:client_id(profiles(name)),
-          professional:professional_id(profiles(name)),
           appointment:appointment_id(service:service_id(name))
         `)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
 
+      // Buscar informações dos clientes e profissionais
+      const clientIds = data.map((review: any) => review.client_id);
+      const professionalIds = data.map((review: any) => review.professional_id);
+      const allUserIds = [...new Set([...clientIds, ...professionalIds])];
+
+      // Buscar perfis de usuários
+      const { data: profilesData, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, name")
+        .in("id", allUserIds);
+
+      if (profilesError) throw profilesError;
+
+      // Criar mapa de id -> nome
+      const userNamesMap: Record<string, string> = {};
+      profilesData?.forEach((profile: any) => {
+        userNamesMap[profile.id] = profile.name;
+      });
+
       // Formatar os dados
       const formattedReviews = data.map((review: any) => ({
         ...review,
         client: {
-          name: review.client?.profiles?.[0]?.name || "Cliente",
+          name: userNamesMap[review.client_id] || "Cliente",
         },
         professional: {
-          name: review.professional?.profiles?.[0]?.name || "Profissional",
+          name: userNamesMap[review.professional_id] || "Profissional",
         },
         appointment: {
           service: {

@@ -31,14 +31,15 @@ export function ReviewsCarousel() {
     const fetchReviews = async () => {
       setLoading(true);
       try {
+        // Buscar avaliações aprovadas
         const { data, error } = await supabase
           .from("reviews")
           .select(`
             id,
             rating,
             comment,
-            client:client_id(profiles(name)),
-            professional:professional_id(profiles(name)),
+            client_id,
+            professional_id,
             appointment:appointment_id(service:service_id(name))
           `)
           .eq("status", "approved")
@@ -47,16 +48,35 @@ export function ReviewsCarousel() {
 
         if (error) throw error;
 
+        // Buscar informações dos clientes e profissionais
+        const clientIds = data.map((review: any) => review.client_id);
+        const professionalIds = data.map((review: any) => review.professional_id);
+        const allUserIds = [...new Set([...clientIds, ...professionalIds])];
+
+        // Buscar perfis de usuários
+        const { data: profilesData, error: profilesError } = await supabase
+          .from("profiles")
+          .select("id, name")
+          .in("id", allUserIds);
+
+        if (profilesError) throw profilesError;
+
+        // Criar mapa de id -> nome
+        const userNamesMap: Record<string, string> = {};
+        profilesData?.forEach((profile: any) => {
+          userNamesMap[profile.id] = profile.name;
+        });
+
         // Formatar os dados
         const formattedReviews = data.map((review: any) => ({
           id: review.id,
           rating: review.rating,
           comment: review.comment,
           client: {
-            name: review.client?.profiles?.[0]?.name || "Cliente",
+            name: userNamesMap[review.client_id] || "Cliente",
           },
           professional: {
-            name: review.professional?.profiles?.[0]?.name || "Profissional",
+            name: userNamesMap[review.professional_id] || "Profissional",
           },
           service: {
             name: review.appointment?.service?.name || "Serviço",
@@ -120,15 +140,15 @@ export function ReviewsCarousel() {
           <CardContent className="p-8">
             <div className="flex flex-col items-center text-center">
               <Quote className="h-10 w-10 text-primary/30 mb-4" />
-              
+
               {currentReview.comment && (
                 <p className="text-lg mb-6 italic">"{currentReview.comment}"</p>
               )}
-              
+
               <div className="mb-4">
                 <Rating value={currentReview.rating} readOnly />
               </div>
-              
+
               <div className="flex flex-col items-center">
                 <Avatar className="h-12 w-12 mb-2">
                   <AvatarFallback>{getInitials(currentReview.client.name)}</AvatarFallback>
@@ -141,7 +161,7 @@ export function ReviewsCarousel() {
             </div>
           </CardContent>
         </Card>
-        
+
         {reviews.length > 1 && (
           <div className="flex justify-center mt-4 gap-2">
             <Button
