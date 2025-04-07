@@ -46,45 +46,50 @@ const UsersAdmin = () => {
     const fetchUsers = async () => {
       try {
         setLoading(true);
-        const { data, error } = await supabase
+        
+        // Primeiro, obter os perfis dos usuários
+        const { data: profiles, error: profilesError } = await supabase
           .from("profiles")
           .select("id, name, role, created_at");
 
-        if (error) {
-          console.error("Erro ao buscar usuários:", error);
+        if (profilesError) {
+          console.error("Erro ao buscar perfis:", profilesError);
           toast({
             title: "Erro",
             description: "Não foi possível carregar a lista de usuários.",
             variant: "destructive",
           });
-        } else {
-          // Buscar emails dos usuários
-          const authUsers = await Promise.all(
-            data.map(async (profile) => {
-              // Buscar detalhes do usuário
-              const { data: userData, error: userError } = await supabase
-                .from("profiles")
-                .select("id, name, role, created_at")
-                .eq("id", profile.id)
-                .single();
-
-              if (userError) {
-                console.error("Erro ao buscar detalhes do usuário:", userError);
-                return {
-                  ...profile,
-                  email: "Email não disponível",
-                };
-              }
-
-              return {
-                ...profile,
-                email: userData.email || "Email não disponível",
-              };
-            })
-          );
-
-          setUsers(authUsers as User[]);
+          setLoading(false);
+          return;
         }
+
+        // Obter detalhes dos usuários do Auth
+        const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+        
+        if (authError) {
+          console.error("Erro ao buscar detalhes dos usuários:", authError);
+          
+          // Mesmo com erro, vamos montar os usuários com os dados que temos
+          const usersWithoutEmails = profiles.map((profile) => ({
+            ...profile,
+            email: "Email não disponível",
+          }));
+          
+          setUsers(usersWithoutEmails as User[]);
+          setLoading(false);
+          return;
+        }
+
+        // Combinar os dados de perfil com emails
+        const completeUsers = profiles.map((profile) => {
+          const authUser = authUsers.users.find(user => user.id === profile.id);
+          return {
+            ...profile,
+            email: authUser?.email || "Email não disponível",
+          };
+        });
+
+        setUsers(completeUsers as User[]);
       } catch (error) {
         console.error("Erro inesperado:", error);
         toast({
