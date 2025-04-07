@@ -29,7 +29,7 @@ const DeleteProfessionalDialog = ({
         <DialogHeader>
           <DialogTitle>Excluir Profissional</DialogTitle>
           <DialogDescription>
-            Tem certeza de que deseja excluir este profissional? Esta ação não pode ser desfeita.
+            Tem certeza de que deseja excluir {professional?.name}? Esta ação não pode ser desfeita.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

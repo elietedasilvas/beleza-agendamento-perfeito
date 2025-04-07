@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { CalendarDays, Clock, User, Settings, LogOut, Calendar, History, BadgeCheck } from "lucide-react";
+
+import { useState, useEffect } from "react";
+import { CalendarDays, Clock, User, Settings, LogOut, Calendar, History, BadgeCheck, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,18 +13,10 @@ import {
   AvatarImage,
 } from "@/components/ui/avatar";
 import { formatCurrency } from "@/data/mockData";
-import { toast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-
-// Mock user data
-const userData = {
-  name: "Maria Silva",
-  email: "maria.silva@example.com",
-  phone: "(11) 98765-4321",
-  initials: "MS",
-  avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80"
-};
 
 // Mock appointments data
 const mockAppointments = [
@@ -57,29 +50,149 @@ const mockAppointments = [
 ];
 
 const ProfilePage = () => {
-  const { logout } = useAuth();
+  const { user, logout, updateProfile } = useAuth();
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    name: userData.name,
-    email: userData.email,
-    phone: userData.phone,
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [userProfile, setUserProfile] = useState<{
+    name: string;
+    email: string;
+    phone: string;
+    avatar_url: string;
+  }>({
+    name: "",
+    email: "",
+    phone: "",
+    avatar_url: "",
   });
+  
+  // Fetch user profile data
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!user) return;
+      
+      setLoading(true);
+      
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("name, phone, avatar_url")
+          .eq("id", user.id)
+          .single();
+        
+        if (error) {
+          throw error;
+        }
+        
+        setUserProfile({
+          name: data?.name || "",
+          email: user.email || "",
+          phone: data?.phone || "",
+          avatar_url: data?.avatar_url || "",
+        });
+      } catch (error: any) {
+        console.error("Error fetching profile:", error);
+        toast({
+          title: "Erro ao carregar perfil",
+          description: error.message,
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchUserProfile();
+  }, [user, toast]);
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setUserProfile(prev => ({ ...prev, [name]: value }));
   };
   
-  const handleSaveProfile = () => {
-    toast({
-      title: "Perfil atualizado",
-      description: "Suas informações foram atualizadas com sucesso!",
-    });
+  const handleSaveProfile = async () => {
+    try {
+      const { success, error } = await updateProfile({
+        name: userProfile.name,
+        phone: userProfile.phone,
+        avatar_url: userProfile.avatar_url,
+      });
+      
+      if (!success && error) {
+        throw new Error(error);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro ao atualizar perfil",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
   
   const handleLogout = async () => {
     await logout();
     navigate("/auth");
+  };
+  
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    
+    setUploading(true);
+    
+    try {
+      // Generate a unique file name
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+      
+      // Upload the file to Supabase storage
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, file);
+      
+      if (uploadError) {
+        throw uploadError;
+      }
+      
+      // Get the public URL
+      const { data: urlData } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(filePath);
+      
+      const avatarUrl = urlData.publicUrl;
+      
+      // Update the user profile with the new avatar URL
+      const { success, error } = await updateProfile({
+        avatar_url: avatarUrl,
+      });
+      
+      if (!success && error) {
+        throw new Error(error);
+      }
+      
+      // Update local state
+      setUserProfile(prev => ({
+        ...prev,
+        avatar_url: avatarUrl,
+      }));
+      
+      toast({
+        title: "Avatar atualizado",
+        description: "Sua foto de perfil foi atualizada com sucesso!",
+      });
+    } catch (error: any) {
+      console.error("Error uploading avatar:", error);
+      toast({
+        title: "Erro ao fazer upload",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+    }
   };
   
   const handleCancelAppointment = (id: string) => {
@@ -93,17 +206,53 @@ const ProfilePage = () => {
   const upcomingAppointments = mockAppointments.filter(app => app.status === "scheduled");
   const pastAppointments = mockAppointments.filter(app => app.status === "completed");
   
+  // Get user initials for avatar
+  const getInitials = (name: string) => {
+    if (!name) return "?";
+    return name
+      .split(" ")
+      .map(n => n[0])
+      .join("")
+      .toUpperCase()
+      .substring(0, 2);
+  };
+  
+  if (loading) {
+    return (
+      <div className="container py-8 flex items-center justify-center">
+        <p>Carregando perfil...</p>
+      </div>
+    );
+  }
+  
   return (
     <div className="container py-8 md:py-12">
       <div className="max-w-4xl mx-auto">
         <div className="flex flex-col md:flex-row gap-6 md:gap-10 mb-10">
           <div className="flex flex-col items-center">
-            <Avatar className="h-24 w-24 mb-4">
-              <AvatarImage src={userData.avatar} alt={userData.name} />
-              <AvatarFallback>{userData.initials}</AvatarFallback>
-            </Avatar>
-            <h1 className="text-2xl font-bold">{userData.name}</h1>
-            <p className="text-muted-foreground">{userData.email}</p>
+            <div className="relative">
+              <Avatar className="h-24 w-24 mb-4">
+                <AvatarImage src={userProfile.avatar_url} alt={userProfile.name} />
+                <AvatarFallback>{getInitials(userProfile.name)}</AvatarFallback>
+              </Avatar>
+              <div className="absolute -bottom-2 -right-2">
+                <label htmlFor="avatar-upload" className="cursor-pointer">
+                  <div className="bg-primary hover:bg-primary/90 text-white p-1 rounded-full">
+                    <Upload className="h-4 w-4" />
+                  </div>
+                  <input 
+                    id="avatar-upload" 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden"
+                    onChange={handleAvatarUpload}
+                    disabled={uploading}
+                  />
+                </label>
+              </div>
+            </div>
+            <h1 className="text-2xl font-bold">{userProfile.name || "Usuário"}</h1>
+            <p className="text-muted-foreground">{userProfile.email}</p>
           </div>
           
           <div className="flex-1">
@@ -280,7 +429,7 @@ const ProfilePage = () => {
                         <Input 
                           id="name"
                           name="name" 
-                          value={formData.name}
+                          value={userProfile.name}
                           onChange={handleInputChange}
                         />
                       </div>
@@ -291,8 +440,10 @@ const ProfilePage = () => {
                           id="email"
                           name="email" 
                           type="email"
-                          value={formData.email}
-                          onChange={handleInputChange}
+                          value={userProfile.email}
+                          readOnly
+                          disabled
+                          className="bg-muted"
                         />
                       </div>
                       
@@ -301,7 +452,7 @@ const ProfilePage = () => {
                         <Input 
                           id="phone"
                           name="phone"
-                          value={formData.phone}
+                          value={userProfile.phone}
                           onChange={handleInputChange}
                         />
                       </div>

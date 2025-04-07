@@ -17,6 +17,14 @@ type AuthContextType = {
     error?: string;
   }>;
   logout: () => Promise<void>;
+  updateProfile: (data: {
+    name?: string;
+    phone?: string;
+    avatar_url?: string;
+  }) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -117,6 +125,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const updateProfile = async (data: { name?: string; phone?: string; avatar_url?: string }) => {
+    try {
+      if (!user) {
+        return { success: false, error: "Usuário não autenticado" };
+      }
+
+      const { error } = await supabase
+        .from("profiles")
+        .update(data)
+        .eq("id", user.id);
+
+      if (error) {
+        toast({
+          title: "Erro ao atualizar perfil",
+          description: error.message,
+          variant: "destructive",
+        });
+        return { success: false, error: error.message };
+      }
+
+      toast({
+        title: "Perfil atualizado",
+        description: "Suas informações foram atualizadas com sucesso!",
+      });
+      return { success: true };
+    } catch (error: any) {
+      toast({
+        title: "Erro ao atualizar perfil",
+        description: error.message,
+        variant: "destructive",
+      });
+      return { success: false, error: error.message };
+    }
+  };
+
   const logout = async () => {
     await supabase.auth.signOut();
     toast({
@@ -127,7 +170,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   return (
     <AuthContext.Provider
-      value={{ user, session, isLoading, login, signup, logout }}
+      value={{ user, session, isLoading, login, signup, logout, updateProfile }}
     >
       {children}
     </AuthContext.Provider>
