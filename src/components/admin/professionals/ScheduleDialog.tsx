@@ -17,6 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface ScheduleDialogProps {
   professional: Professional;
@@ -25,16 +27,28 @@ interface ScheduleDialogProps {
   onUpdateSchedule: (day: string, times: string[]) => void;
 }
 
+const weekDayToNumber = {
+  "Segunda": 1,
+  "Terça": 2,
+  "Quarta": 3,
+  "Quinta": 4,
+  "Sexta": 5,
+  "Sábado": 6,
+  "Domingo": 0
+};
+
 const ScheduleDialog = ({
   professional,
   open,
   onOpenChange,
   onUpdateSchedule,
 }: ScheduleDialogProps) => {
+  const { toast } = useToast();
   const [selectedDay, setSelectedDay] = useState("Segunda");
   const [availableTimes, setAvailableTimes] = useState<string[]>(
     professional.schedule[selectedDay] || []
   );
+  const [isLoading, setIsLoading] = useState(false);
   const timeSlots = [
     "8:00", "9:00", "10:00", "11:00", "12:00", "13:00", 
     "14:00", "15:00", "16:00", "17:00", "18:00", "19:00"
@@ -52,9 +66,59 @@ const ScheduleDialog = ({
     }
   };
 
-  const handleSave = () => {
-    onUpdateSchedule(selectedDay, availableTimes);
-    onOpenChange(false);
+  const handleSave = async () => {
+    setIsLoading(true);
+    try {
+      // Primeiro, exclua todas as disponibilidades existentes para este profissional neste dia
+      const dayNumber = weekDayToNumber[selectedDay as keyof typeof weekDayToNumber];
+      
+      await supabase
+        .from("availability")
+        .delete()
+        .eq("professional_id", professional.id)
+        .eq("day_of_week", dayNumber);
+      
+      // Depois, insira as novas disponibilidades
+      if (availableTimes.length > 0) {
+        const availabilityData = availableTimes.map(time => {
+          // Calcula o horário de término (1 hora depois)
+          const [hour, minute] = time.split(':').map(Number);
+          const endHour = hour + 1;
+          const endTime = `${endHour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+          
+          return {
+            professional_id: professional.id,
+            day_of_week: dayNumber,
+            start_time: time,
+            end_time: endTime
+          };
+        });
+        
+        const { error } = await supabase
+          .from("availability")
+          .insert(availabilityData);
+        
+        if (error) throw error;
+      }
+      
+      // Notifica o componente pai sobre a mudança
+      onUpdateSchedule(selectedDay, availableTimes);
+      toast({
+        title: "Horários atualizados",
+        description: `Os horários para ${selectedDay} foram atualizados com sucesso.`
+      });
+      
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Erro ao salvar horários:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível salvar os horários. Tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -70,9 +134,12 @@ const ScheduleDialog = ({
           <div className="grid grid-cols-1 lg:grid-cols-2 items-center gap-4">
             <div className="space-y-2">
               <h4 className="text-sm font-medium">Dia da Semana</h4>
-              <Select onValueChange={(value) => setSelectedDay(value)}>
+              <Select 
+                value={selectedDay} 
+                onValueChange={(value) => setSelectedDay(value)}
+              >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Selecione um dia" defaultValue={selectedDay} />
+                  <SelectValue placeholder="Selecione um dia" />
                 </SelectTrigger>
                 <SelectContent>
                   {["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"].map((day) => (
@@ -103,8 +170,8 @@ const ScheduleDialog = ({
           <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button type="button" onClick={handleSave}>
-            Salvar
+          <Button type="button" onClick={handleSave} disabled={isLoading}>
+            {isLoading ? "Salvando..." : "Salvar"}
           </Button>
         </DialogFooter>
       </DialogContent>

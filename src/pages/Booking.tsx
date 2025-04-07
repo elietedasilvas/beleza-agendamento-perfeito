@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
@@ -31,13 +30,26 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
   formatCurrency,
-  formatDuration,
-  Professional,
-  Service
+  formatDuration
 } from "@/data/mockData";
+import type { Professional, Service } from "@/data/mockData";
 import { supabase } from "@/integrations/supabase/client";
 import { Service as SupabaseService } from "@/types/global.d";
 import { adaptToMockService } from "@/types/service-adapter";
+
+const dayNameToNumber = {
+  "domingo": 0,
+  "segunda-feira": 1,
+  "terça-feira": 2,
+  "quarta-feira": 3,
+  "quinta-feira": 4,
+  "sexta-feira": 5,
+  "sábado": 6,
+};
+
+const formatTimeDisplay = (time: string) => {
+  return time.substring(0, 5);
+};
 
 const BookingPage = () => {
   const { professionalId } = useParams();
@@ -55,12 +67,10 @@ const BookingPage = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [bookingComplete, setBookingComplete] = useState(false);
   
-  // Buscar profissionais e serviços do Supabase quando o componente for montado
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // Buscar profissionais
         const { data: professionalData, error: professionalError } = await supabase
           .from("professionals")
           .select("id, bio, active")
@@ -76,7 +86,6 @@ const BookingPage = () => {
           return;
         }
         
-        // Buscar serviços
         const { data: serviceData, error: serviceError } = await supabase
           .from("services")
           .select("*")
@@ -92,12 +101,10 @@ const BookingPage = () => {
           return;
         }
         
-        // Converter serviços de Supabase para o formato MockData
         const formattedServices = serviceData.map((service: SupabaseService) => 
           adaptToMockService(service)
         );
         
-        // Buscar dados de perfil para cada profissional
         const enhancedProfessionals = await Promise.all(
           professionalData.map(async (prof) => {
             const { data: profileData } = await supabase
@@ -106,7 +113,6 @@ const BookingPage = () => {
               .eq("id", prof.id)
               .single();
             
-            // Buscar serviços associados a este profissional
             const { data: professionalServices } = await supabase
               .from("professional_services")
               .select("service_id")
@@ -124,7 +130,8 @@ const BookingPage = () => {
               services: serviceIds,
               rating: 5.0,
               reviewCount: 0,
-              schedule: getDefaultSchedule()
+              schedule: {},
+              email: "email@example.com"
             };
           })
         );
@@ -132,7 +139,6 @@ const BookingPage = () => {
         setProfessionals(enhancedProfessionals);
         setServices(formattedServices);
         
-        // Se tiver um ID de profissional na URL, selecionar ele
         if (professionalId) {
           const professional = enhancedProfessionals.find(p => p.id === professionalId);
           if (professional) {
@@ -148,18 +154,6 @@ const BookingPage = () => {
     
     fetchData();
   }, [professionalId]);
-  
-  // Função auxiliar para criar um cronograma padrão
-  const getDefaultSchedule = () => {
-    const schedule: Record<string, string[]> = {};
-    const diasSemana = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta"];
-    
-    diasSemana.forEach(dia => {
-      schedule[dia] = ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"];
-    });
-    
-    return schedule;
-  };
   
   const getAvailableProfessionals = (serviceId?: string) => {
     if (!serviceId) return professionals;
@@ -182,18 +176,62 @@ const BookingPage = () => {
     : services;
   
   useEffect(() => {
-    if (date && selectedProfessional) {
-      const dayName = format(date, 'EEEE', { locale: ptBR });
-      const capitalizedDayName = dayName.charAt(0).toUpperCase() + dayName.slice(1);
-      
-      const times = selectedProfessional.schedule[capitalizedDayName] || [];
-      setAvailableTimes(times);
-      setSelectedTime(null);
-    } else {
-      setAvailableTimes([]);
-      setSelectedTime(null);
-    }
-  }, [date, selectedProfessional]);
+    const fetchAvailableTimes = async () => {
+      if (!date || !selectedProfessional || !selectedService) {
+        setAvailableTimes([]);
+        setSelectedTime(null);
+        return;
+      }
+
+      try {
+        const dayName = format(date, 'EEEE', { locale: ptBR });
+        const dayNumber = dayNameToNumber[dayName as keyof typeof dayNameToNumber];
+        
+        const { data, error } = await supabase
+          .from("availability")
+          .select("*")
+          .eq("professional_id", selectedProfessional.id)
+          .eq("day_of_week", dayNumber);
+        
+        if (error) {
+          console.error("Erro ao buscar disponibilidade:", error);
+          toast({
+            title: "Erro",
+            description: "Não foi possível carregar os horários disponíveis",
+            variant: "destructive"
+          });
+          return;
+        }
+        
+        const times = data.map(slot => formatTimeDisplay(slot.start_time));
+        
+        const dateStr = format(date, 'yyyy-MM-dd');
+        const { data: existingAppointments, error: appointmentsError } = await supabase
+          .from("appointments")
+          .select("start_time")
+          .eq("professional_id", selectedProfessional.id)
+          .eq("date", dateStr)
+          .neq("status", "canceled");
+        
+        if (appointmentsError) {
+          console.error("Erro ao buscar agendamentos:", appointmentsError);
+        } else if (existingAppointments && existingAppointments.length > 0) {
+          const bookedTimes = existingAppointments.map(app => formatTimeDisplay(app.start_time));
+          const availableTimes = times.filter(time => !bookedTimes.includes(time));
+          setAvailableTimes(availableTimes);
+        } else {
+          setAvailableTimes(times);
+        }
+      } catch (error) {
+        console.error("Erro ao processar horários:", error);
+        setAvailableTimes([]);
+      } finally {
+        setSelectedTime(null);
+      }
+    };
+    
+    fetchAvailableTimes();
+  }, [date, selectedProfessional, selectedService]);
   
   useEffect(() => {
     setSelectedService(null);
@@ -213,7 +251,7 @@ const BookingPage = () => {
     setSelectedTime(time);
   };
   
-  const handleNextStep = () => {
+  const handleNextStep = async () => {
     if (currentStep === 1 && (!selectedProfessional || !selectedService)) {
       toast({
         title: "Campos obrigatórios",
@@ -233,7 +271,60 @@ const BookingPage = () => {
     }
     
     if (currentStep === 3) {
-      setBookingComplete(true);
+      if (!selectedProfessional || !selectedService || !date || !selectedTime) {
+        toast({
+          title: "Erro",
+          description: "Informações de agendamento incompletas.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      try {
+        const dateStr = format(date, 'yyyy-MM-dd');
+        
+        const [hour, minute] = selectedTime.split(':').map(Number);
+        const serviceDuration = selectedService.duration;
+        const endMinutes = hour * 60 + minute + serviceDuration;
+        const endHour = Math.floor(endMinutes / 60);
+        const endMinute = endMinutes % 60;
+        const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+        
+        const { error } = await supabase
+          .from("appointments")
+          .insert({
+            client_id: "user-id",
+            professional_id: selectedProfessional.id,
+            service_id: selectedService.id,
+            date: dateStr,
+            start_time: selectedTime,
+            end_time: endTime,
+            status: "scheduled"
+          });
+        
+        if (error) {
+          console.error("Erro ao criar agendamento:", error);
+          toast({
+            title: "Erro",
+            description: "Não foi possível criar o agendamento. Tente novamente.",
+            variant: "destructive"
+          });
+          return;
+        }
+        
+        setBookingComplete(true);
+        toast({
+          title: "Agendamento confirmado!",
+          description: "Seu agendamento foi realizado com sucesso."
+        });
+      } catch (error) {
+        console.error("Erro ao processar agendamento:", error);
+        toast({
+          title: "Erro",
+          description: "Ocorreu um erro ao processar seu agendamento.",
+          variant: "destructive"
+        });
+      }
       return;
     }
     
