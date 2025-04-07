@@ -18,6 +18,7 @@ import AdminServices from "./pages/admin/Services";
 import AdminProfessionals from "./pages/admin/Professionals";
 import AdminAppointments from "./pages/admin/Appointments";
 import AdminSettings from "./pages/admin/Settings";
+import AdminSchedule from "./pages/admin/Schedule";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,7 @@ const App = () => (
             <Route path="services" element={<AdminServices />} />
             <Route path="professionals" element={<AdminProfessionals />} />
             <Route path="appointments" element={<AdminAppointments />} />
+            <Route path="schedule" element={<AdminSchedule />} />
             <Route path="settings" element={<AdminSettings />} />
           </Route>
         </Routes>
