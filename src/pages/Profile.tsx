@@ -18,36 +18,24 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 
-// Mock appointments data
-const mockAppointments = [
-  {
-    id: "1",
-    service: "Corte de Cabelo",
-    professional: "Juliana Costa",
-    date: "2025-04-10",
-    time: "14:00",
-    price: 80,
-    status: "scheduled",
-  },
-  {
-    id: "2",
-    service: "Limpeza de Pele",
-    professional: "Ana Silva",
-    date: "2025-04-05",
-    time: "10:00",
-    price: 120,
-    status: "completed",
-  },
-  {
-    id: "3",
-    service: "Massagem Relaxante",
-    professional: "Roberto Santos",
-    date: "2025-03-20",
-    time: "16:00",
-    price: 150,
-    status: "completed",
-  }
-];
+// Interface para os agendamentos
+interface Appointment {
+  id: string;
+  service_id: string;
+  professional_id: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  status: string;
+  notes?: string;
+  service?: {
+    name: string;
+    price: number;
+  };
+  professional?: {
+    name: string;
+  };
+}
 
 const ProfilePage = () => {
   const { user, logout, updateProfile } = useAuth();
@@ -55,6 +43,8 @@ const ProfilePage = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [loadingAppointments, setLoadingAppointments] = useState(false);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [userProfile, setUserProfile] = useState<{
     name: string;
     email: string;
@@ -203,16 +193,86 @@ const ProfilePage = () => {
     }
   };
 
-  const handleCancelAppointment = (id: string) => {
-    toast({
-      title: "Agendamento cancelado",
-      description: "Seu agendamento foi cancelado com sucesso.",
-    });
+  // Buscar agendamentos do usuário
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      if (!user) return;
+
+      setLoadingAppointments(true);
+
+      try {
+        // Buscar agendamentos com informações de serviço e profissional
+        const { data, error } = await supabase
+          .from('appointments')
+          .select(`
+            *,
+            service:service_id(name, price),
+            professional:professional_id(profiles(name))
+          `)
+          .eq('client_id', user.id)
+          .order('date', { ascending: true })
+          .order('start_time', { ascending: true });
+
+        if (error) throw error;
+
+        // Formatar os dados para o formato esperado
+        const formattedAppointments = data.map((appointment: any) => ({
+          ...appointment,
+          professional: {
+            name: appointment.professional?.profiles?.[0]?.name || 'Profissional'
+          }
+        }));
+
+        setAppointments(formattedAppointments);
+      } catch (error: any) {
+        console.error('Erro ao buscar agendamentos:', error);
+        toast({
+          title: 'Erro ao carregar agendamentos',
+          description: error.message,
+          variant: 'destructive'
+        });
+      } finally {
+        setLoadingAppointments(false);
+      }
+    };
+
+    fetchAppointments();
+  }, [user, toast]);
+
+  const handleCancelAppointment = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('appointments')
+        .update({ status: 'cancelled' })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Atualizar a lista de agendamentos localmente
+      setAppointments(prev =>
+        prev.map(app => app.id === id ? {...app, status: 'cancelled'} : app)
+      );
+
+      toast({
+        title: "Agendamento cancelado",
+        description: "Seu agendamento foi cancelado com sucesso.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao cancelar agendamento",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
   };
 
   // Filter appointments
-  const upcomingAppointments = mockAppointments.filter(app => app.status === "scheduled");
-  const pastAppointments = mockAppointments.filter(app => app.status === "completed");
+  const upcomingAppointments = appointments.filter(app =>
+    app.status === "scheduled" || app.status === "confirmed"
+  );
+  const pastAppointments = appointments.filter(app =>
+    app.status === "completed" || app.status === "cancelled"
+  );
 
   // Get user initials for avatar
   const getInitials = (name: string) => {
@@ -289,7 +349,11 @@ const ProfilePage = () => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {upcomingAppointments.length > 0 ? (
+                    {loadingAppointments ? (
+                      <div className="text-center py-8">
+                        <p>Carregando agendamentos...</p>
+                      </div>
+                    ) : upcomingAppointments.length > 0 ? (
                       <div className="space-y-4">
                         {upcomingAppointments.map(appointment => (
                           <Card key={appointment.id} className="beauty-card">
@@ -299,9 +363,9 @@ const ProfilePage = () => {
                                   <div className="flex items-start gap-2">
                                     <BadgeCheck className="h-5 w-5 text-beauty-purple shrink-0" />
                                     <div>
-                                      <h3 className="font-medium">{appointment.service}</h3>
+                                      <h3 className="font-medium">{appointment.service?.name || 'Serviço'}</h3>
                                       <p className="text-sm text-muted-foreground">
-                                        Com {appointment.professional}
+                                        Com {appointment.professional?.name || 'Profissional'}
                                       </p>
                                     </div>
                                   </div>
@@ -315,14 +379,14 @@ const ProfilePage = () => {
                                     </div>
                                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
                                       <Clock className="h-4 w-4" />
-                                      <span>{appointment.time}</span>
+                                      <span>{appointment.start_time}</span>
                                     </div>
                                   </div>
                                 </div>
 
                                 <div className="flex flex-col md:items-end justify-between">
                                   <p className="font-medium text-beauty-purple">
-                                    {formatCurrency(appointment.price)}
+                                    {formatCurrency(appointment.service?.price || 0)}
                                   </p>
                                   <Button
                                     variant="outline"
@@ -365,7 +429,11 @@ const ProfilePage = () => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {pastAppointments.length > 0 ? (
+                    {loadingAppointments ? (
+                      <div className="text-center py-8">
+                        <p>Carregando histórico...</p>
+                      </div>
+                    ) : pastAppointments.length > 0 ? (
                       <div className="space-y-4">
                         {pastAppointments.map(appointment => (
                           <Card key={appointment.id} className="beauty-card">
@@ -375,9 +443,9 @@ const ProfilePage = () => {
                                   <div className="flex items-start gap-2">
                                     <BadgeCheck className="h-5 w-5 text-muted-foreground shrink-0" />
                                     <div>
-                                      <h3 className="font-medium">{appointment.service}</h3>
+                                      <h3 className="font-medium">{appointment.service?.name || 'Serviço'}</h3>
                                       <p className="text-sm text-muted-foreground">
-                                        Com {appointment.professional}
+                                        Com {appointment.professional?.name || 'Profissional'}
                                       </p>
                                     </div>
                                   </div>
@@ -391,17 +459,17 @@ const ProfilePage = () => {
                                     </div>
                                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
                                       <Clock className="h-4 w-4" />
-                                      <span>{appointment.time}</span>
+                                      <span>{appointment.start_time}</span>
                                     </div>
                                   </div>
                                 </div>
 
                                 <div className="flex flex-col md:items-end justify-between">
                                   <p className="font-medium text-muted-foreground">
-                                    {formatCurrency(appointment.price)}
+                                    {formatCurrency(appointment.service?.price || 0)}
                                   </p>
                                   <Badge variant="outline" className="text-muted-foreground">
-                                    Concluído
+                                    {appointment.status === 'completed' ? 'Concluído' : 'Cancelado'}
                                   </Badge>
                                 </div>
                               </div>
