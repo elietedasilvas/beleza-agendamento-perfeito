@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS public.reviews (
     professional_id UUID NOT NULL REFERENCES public.professionals(id),
     rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
     comment TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT unique_appointment_review UNIQUE (appointment_id)

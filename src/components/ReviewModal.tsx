@@ -61,6 +61,7 @@ export function ReviewModal({
         professional_id: appointment.professional_id,
         rating,
         comment: comment.trim() || null,
+        status: "pending",
         created_at: new Date().toISOString(),
       });
 

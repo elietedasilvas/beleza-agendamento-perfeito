@@ -22,6 +22,7 @@ import AdminUsers from "./pages/admin/Users";
 import AdminAppointments from "./pages/admin/Appointments";
 import AdminSettings from "./pages/admin/Settings";
 import AdminSchedule from "./pages/admin/Schedule";
+import AdminReviews from "./pages/admin/Reviews";
 
 // Professional pages
 import ProfessionalLogin from "./pages/professional/Login";
@@ -52,7 +53,7 @@ const App = () => (
             <Route path="profile" element={<ProfilePage />} />
             <Route path="*" element={<NotFound />} />
           </Route>
-          
+
           {/* Admin routes - protected */}
           <Route element={<ProtectedRoute requiredRole="admin" />}>
             <Route path="/admin" element={<AdminLayout />}>
@@ -62,6 +63,7 @@ const App = () => (
               <Route path="users" element={<AdminUsers />} />
               <Route path="appointments" element={<AdminAppointments />} />
               <Route path="schedule" element={<AdminSchedule />} />
+              <Route path="reviews" element={<AdminReviews />} />
               <Route path="settings" element={<AdminSettings />} />
             </Route>
           </Route>

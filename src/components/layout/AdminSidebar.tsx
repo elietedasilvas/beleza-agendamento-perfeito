@@ -1,6 +1,6 @@
 
 import { Link, useLocation } from "react-router-dom";
-import { Calendar, Users, Scissors, Home, Settings, LogOut, Clock, User } from "lucide-react";
+import { Calendar, Users, Scissors, Home, Settings, LogOut, Clock, User, Star } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -19,7 +19,7 @@ import { useAuth } from "@/contexts/AuthContext";
 const AdminSidebar = () => {
   const location = useLocation();
   const { logout } = useAuth();
-  
+
   const isActive = (path: string) => {
     return location.pathname === path;
   };
@@ -87,6 +87,14 @@ const AdminSidebar = () => {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
+                <SidebarMenuButton asChild className={isActive("/admin/reviews") ? "bg-primary/10 text-primary" : ""}>
+                  <Link to="/admin/reviews">
+                    <Star className="w-4 h-4" />
+                    <span>Avaliações</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
                 <SidebarMenuButton asChild className={isActive("/admin/settings") ? "bg-primary/10 text-primary" : ""}>
                   <Link to="/admin/settings">
                     <Settings className="w-4 h-4" />
@@ -104,7 +112,7 @@ const AdminSidebar = () => {
             <Home className="w-4 h-4" />
             <span>Voltar ao Site</span>
           </Link>
-          <button 
+          <button
             className="flex items-center gap-2 text-destructive p-2 w-full text-left rounded-md hover:bg-accent"
             onClick={logout}
           >

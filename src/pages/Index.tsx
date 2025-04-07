@@ -7,16 +7,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, formatDuration } from "@/data/mockData";
 import { supabase } from "@/integrations/supabase/client";
 import { Service } from "@/types/global.d";
+import { ReviewsCarousel } from "@/components/ReviewsCarousel";
 
 const HeroSection = () => {
   return (
     <div className="relative overflow-hidden">
       <div className="absolute inset-0 beauty-gradient opacity-90 z-0"></div>
-      <div 
-        className="absolute inset-0 z-0 bg-cover bg-center opacity-20" 
+      <div
+        className="absolute inset-0 z-0 bg-cover bg-center opacity-20"
         style={{ backgroundImage: "url('https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?ixlib=rb-1.2.1&auto=format&fit=crop&w=1200&q=80')" }}
       ></div>
-      
+
       <div className="container relative z-10 py-20 md:py-32 text-white">
         <div className="max-w-2xl mx-auto text-center">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
@@ -53,11 +54,11 @@ const ServiceSection = () => {
     { id: "body", name: "Corporal" },
     { id: "barber", name: "Barbearia" },
   ];
-  
+
   const [activeCategory, setActiveCategory] = useState("all");
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   useEffect(() => {
     async function fetchServices() {
       try {
@@ -66,12 +67,12 @@ const ServiceSection = () => {
           .from("services")
           .select("*")
           .eq("active", true);
-          
+
         if (error) {
           console.error("Error fetching services:", error);
           return;
         }
-        
+
         if (data) {
           setServices(data as Service[]);
           window.updatedServices = data as Service[];
@@ -82,14 +83,14 @@ const ServiceSection = () => {
         setLoading(false);
       }
     }
-    
+
     fetchServices();
   }, []);
-  
-  const filteredServices = activeCategory === "all" 
-    ? services 
+
+  const filteredServices = activeCategory === "all"
+    ? services
     : services.filter(service => service.category === activeCategory);
-  
+
   return (
     <section className="py-16 bg-beauty-light/50">
       <div className="container">
@@ -99,7 +100,7 @@ const ServiceSection = () => {
             Descubra nossa variedade de serviços de beleza e bem-estar, todos realizados por profissionais qualificados.
           </p>
         </div>
-        
+
         <Tabs defaultValue="all" className="w-full" onValueChange={setActiveCategory}>
           <div className="flex justify-center mb-8">
             <TabsList className="grid grid-cols-2 md:grid-cols-5 gap-2">
@@ -110,7 +111,7 @@ const ServiceSection = () => {
               ))}
             </TabsList>
           </div>
-          
+
           <TabsContent value={activeCategory} className="mt-0">
             {loading ? (
               <div className="text-center py-12">Carregando serviços...</div>
@@ -123,9 +124,9 @@ const ServiceSection = () => {
                 {filteredServices.map(service => (
                   <Card key={service.id} className="beauty-card overflow-hidden group cursor-pointer">
                     <div className="aspect-video overflow-hidden relative">
-                      <img 
-                        src={service.image || 'https://images.unsplash.com/photo-1560066984-138dadb4c035?ixlib=rb-1.2.1&auto=format&fit=crop&w=1200&q=80'} 
-                        alt={service.name} 
+                      <img
+                        src={service.image || 'https://images.unsplash.com/photo-1560066984-138dadb4c035?ixlib=rb-1.2.1&auto=format&fit=crop&w=1200&q=80'}
+                        alt={service.name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         onError={(e) => {
                           e.currentTarget.src = 'https://images.unsplash.com/photo-1560066984-138dadb4c035?ixlib=rb-1.2.1&auto=format&fit=crop&w=1200&q=80';
@@ -147,7 +148,7 @@ const ServiceSection = () => {
                 ))}
               </div>
             )}
-            
+
             <div className="text-center mt-10">
               <Button asChild className="beauty-button">
                 <Link to="/booking">
@@ -166,28 +167,28 @@ const ServiceSection = () => {
 const ProfessionalsSection = () => {
   const [professionals, setProfessionals] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   useEffect(() => {
     async function fetchProfessionals() {
       try {
         setLoading(true);
-        
+
         const { data: professionalData, error: professionalError } = await supabase
           .from("professionals")
           .select("id, bio, active")
           .eq("active", true)
           .limit(4);
-          
+
         if (professionalError) {
           console.error("Error fetching professionals:", professionalError);
           return;
         }
-        
+
         if (!professionalData || professionalData.length === 0) {
           setLoading(false);
           return;
         }
-        
+
         const enhancedProfessionals = await Promise.all(
           professionalData.map(async (prof) => {
             const { data: profileData, error: profileError } = await supabase
@@ -195,11 +196,11 @@ const ProfessionalsSection = () => {
               .select("name, avatar_url")
               .eq("id", prof.id)
               .single();
-              
+
             if (profileError) {
               console.error(`Error fetching profile for professional ${prof.id}:`, profileError);
             }
-            
+
             return {
               id: prof.id,
               name: profileData?.name || "Profissional",
@@ -212,7 +213,7 @@ const ProfessionalsSection = () => {
             };
           })
         );
-        
+
         setProfessionals(enhancedProfessionals);
       } catch (error) {
         console.error("Error in ProfessionalsSection:", error);
@@ -220,10 +221,10 @@ const ProfessionalsSection = () => {
         setLoading(false);
       }
     }
-    
+
     fetchProfessionals();
   }, []);
-  
+
   return (
     <section className="py-16">
       <div className="container">
@@ -233,7 +234,7 @@ const ProfessionalsSection = () => {
             Conheça os profissionais que farão você se sentir especial com atendimento personalizado.
           </p>
         </div>
-        
+
         {loading ? (
           <div className="text-center py-12">Carregando profissionais...</div>
         ) : professionals.length === 0 ? (
@@ -245,9 +246,9 @@ const ProfessionalsSection = () => {
             {professionals.map(professional => (
               <Card key={professional.id} className="beauty-card relative group overflow-hidden">
                 <div className="aspect-square overflow-hidden">
-                  <img 
-                    src={professional.image} 
-                    alt={professional.name} 
+                  <img
+                    src={professional.image}
+                    alt={professional.name}
                     className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
                     onError={(e) => {
                       e.currentTarget.src = 'https://images.unsplash.com/photo-1580489944761-15a19d654956?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80';
@@ -273,7 +274,7 @@ const ProfessionalsSection = () => {
             ))}
           </div>
         )}
-        
+
         <div className="text-center mt-10">
           <Button asChild className="beauty-button">
             <Link to="/professionals">
@@ -310,7 +311,7 @@ const FeaturesSection = () => {
       description: "Disponibilidade estendida para atender você quando for mais conveniente."
     }
   ];
-  
+
   return (
     <section className="py-16 bg-gradient-to-b from-beauty-peach/50 to-white">
       <div className="container">
@@ -320,7 +321,7 @@ const FeaturesSection = () => {
             Oferecemos experiências de beleza e bem-estar de alta qualidade, com atendimento personalizado.
           </p>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {features.map((feature, index) => (
             <div key={index} className="text-center">
@@ -338,29 +339,8 @@ const FeaturesSection = () => {
 };
 
 const TestimonialSection = () => {
-  const testimonials = [
-    {
-      name: "Mariana Souza",
-      avatar: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&q=80",
-      quote: "Atendimento impecável! A Ana é maravilhosa, super profissional e atenciosa. Minha pele nunca esteve tão bonita!",
-      rating: 5
-    },
-    {
-      name: "João Pedro",
-      avatar: "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&q=80",
-      quote: "O Carlos é o melhor barbeiro que já conheci. Corte perfeito e a barba também. Sempre saio satisfeito!",
-      rating: 5
-    },
-    {
-      name: "Camila Alves",
-      avatar: "https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&q=80",
-      quote: "Excelente experiência! A massagem do Roberto é simplesmente incrível, saí totalmente relaxada e renovada.",
-      rating: 5
-    }
-  ];
-  
   return (
-    <section className="py-16">
+    <section className="py-16 bg-gray-50">
       <div className="container">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold mb-3">O que nossos clientes dizem</h2>
@@ -368,34 +348,8 @@ const TestimonialSection = () => {
             Confira a opinião de quem já experimentou nossos serviços.
           </p>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {testimonials.map((testimonial, index) => (
-            <Card key={index} className="beauty-card">
-              <CardContent className="p-6">
-                <div className="flex items-center mb-4">
-                  <img 
-                    src={testimonial.avatar} 
-                    alt={testimonial.name} 
-                    className="w-12 h-12 rounded-full object-cover mr-4"
-                  />
-                  <div>
-                    <h4 className="font-semibold">{testimonial.name}</h4>
-                    <div className="flex">
-                      {[...Array(5)].map((_, i) => (
-                        <Star 
-                          key={i} 
-                          className={`h-4 w-4 ${i < testimonial.rating ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`} 
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <p className="text-muted-foreground italic">"{testimonial.quote}"</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+
+        <ReviewsCarousel />
       </div>
     </section>
   );
