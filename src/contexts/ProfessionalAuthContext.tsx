@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { professionals } from "@/data/mockData";
 import { toast } from "@/hooks/use-toast";
