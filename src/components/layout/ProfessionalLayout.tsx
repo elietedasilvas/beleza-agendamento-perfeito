@@ -2,7 +2,6 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { useProfessionalAuth } from "@/contexts/ProfessionalAuthContext";
 import { Button } from "@/components/ui/button";
-import { Toaster } from "@/components/ui/toaster";
 import { LogOut, User, Calendar, Home, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -61,8 +60,6 @@ const ProfessionalLayout = () => {
           &copy; {new Date().getFullYear()} Salão de Beleza - Área do Profissional
         </div>
       </footer>
-
-      <Toaster />
     </div>
   );
 };
