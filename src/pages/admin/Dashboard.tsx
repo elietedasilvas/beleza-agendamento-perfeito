@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Users, Scissors, Clock } from "lucide-react";
@@ -45,32 +44,34 @@ const AdminDashboard = () => {
           setServicesDuration(Math.round(totalDuration / servicesData.length));
         }
         
-        // Buscar profissionais com seus perfis
+        // Buscar profissionais
         const { data: professionalsData, error: professionalsError } = await supabase
           .from('professionals')
-          .select(`
-            id,
-            active,
-            profiles:id (
-              id,
-              name,
-              avatar_url
-            )
-          `)
+          .select('id, active')
           .eq('active', true);
           
         if (professionalsError) throw professionalsError;
         
-        // Transformar os dados para o formato esperado
-        const professionalList = professionalsData?.map(p => ({
-          id: p.id,
-          name: p.profiles?.name || 'Sem nome',
-          image: p.profiles?.avatar_url || 'https://images.unsplash.com/photo-1580489944761-15a19d654956?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
-          // Valores padrão para evitar erros
-          role: 'Profissional',
-          rating: 5.0,
-          reviewCount: 0
-        })) || [];
+        // Buscar detalhes dos perfis dos profissionais
+        const professionalList = await Promise.all(
+          (professionalsData || []).map(async (p) => {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('name, avatar_url')
+              .eq('id', p.id)
+              .single();
+            
+            return {
+              id: p.id,
+              name: profileData?.name || 'Sem nome',
+              image: profileData?.avatar_url || 'https://images.unsplash.com/photo-1580489944761-15a19d654956?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
+              // Valores padrão para evitar erros
+              role: 'Profissional',
+              rating: 5.0,
+              reviewCount: 0
+            };
+          })
+        );
         
         setProfessionals(professionalList);
         
@@ -82,26 +83,49 @@ const AdminDashboard = () => {
             date,
             start_time,
             status,
-            professional_id (
-              id,
-              profiles:id (
-                name
-              )
-            ),
-            service_id (
-              id,
-              name
-            ),
-            client_id (
-              id,
-              name
-            )
+            professional_id,
+            service_id,
+            client_id
           `)
           .order('date', { ascending: true })
           .order('start_time', { ascending: true });
           
         if (appointmentsError) throw appointmentsError;
-        setAppointments(appointmentsData || []);
+        
+        // Buscar detalhes para cada agendamento
+        const appointmentsWithDetails = await Promise.all(
+          (appointmentsData || []).map(async (apt) => {
+            // Buscar dados do cliente
+            const { data: clientData } = await supabase
+              .from('profiles')
+              .select('name')
+              .eq('id', apt.client_id)
+              .single();
+            
+            // Buscar dados do profissional
+            const { data: professionalData } = await supabase
+              .from('profiles')
+              .select('name')
+              .eq('id', apt.professional_id)
+              .single();
+            
+            // Buscar dados do serviço
+            const { data: serviceData } = await supabase
+              .from('services')
+              .select('name')
+              .eq('id', apt.service_id)
+              .single();
+            
+            return {
+              ...apt,
+              client_name: clientData?.name || 'Cliente não encontrado',
+              professional_name: professionalData?.name || 'Profissional não encontrado',
+              service_name: serviceData?.name || 'Serviço não encontrado'
+            };
+          })
+        );
+        
+        setAppointments(appointmentsWithDetails);
         
         // Buscar próximos agendamentos
         const { data: upcomingData, error: upcomingError } = await supabase
@@ -111,20 +135,9 @@ const AdminDashboard = () => {
             date,
             start_time,
             status,
-            professional_id (
-              id,
-              profiles:id (
-                name
-              )
-            ),
-            service_id (
-              id,
-              name
-            ),
-            client_id (
-              id,
-              name
-            )
+            professional_id,
+            service_id,
+            client_id
           `)
           .gte('date', format(new Date(), 'yyyy-MM-dd'))
           .order('date', { ascending: true })
@@ -132,7 +145,41 @@ const AdminDashboard = () => {
           .limit(3);
           
         if (upcomingError) throw upcomingError;
-        setUpcomingAppointments(upcomingData || []);
+        
+        // Adicionar detalhes aos próximos agendamentos
+        const upcomingWithDetails = await Promise.all(
+          (upcomingData || []).map(async (apt) => {
+            // Buscar dados do cliente
+            const { data: clientData } = await supabase
+              .from('profiles')
+              .select('name')
+              .eq('id', apt.client_id)
+              .single();
+            
+            // Buscar dados do profissional
+            const { data: professionalData } = await supabase
+              .from('profiles')
+              .select('name')
+              .eq('id', apt.professional_id)
+              .single();
+            
+            // Buscar dados do serviço
+            const { data: serviceData } = await supabase
+              .from('services')
+              .select('name')
+              .eq('id', apt.service_id)
+              .single();
+            
+            return {
+              ...apt,
+              client_name: clientData?.name || 'Cliente não encontrado',
+              professional_name: professionalData?.name || 'Profissional não encontrado',
+              service_name: serviceData?.name || 'Serviço não encontrado'
+            };
+          })
+        );
+        
+        setUpcomingAppointments(upcomingWithDetails);
         
       } catch (error) {
         console.error('Erro ao buscar dados do dashboard:', error);
@@ -281,10 +328,10 @@ const AdminDashboard = () => {
                     <div className="rounded-full w-2 h-2 bg-primary"></div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">
-                        {appointment.client_id?.name || 'Cliente'} • {appointment.service_id?.name || 'Serviço'}
+                        {appointment.client_name || 'Cliente'} • {appointment.service_name || 'Serviço'}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        Com {appointment.professional_id?.profiles?.name || 'Profissional'}
+                        Com {appointment.professional_name || 'Profissional'}
                       </p>
                     </div>
                     <p className="text-sm text-muted-foreground whitespace-nowrap">

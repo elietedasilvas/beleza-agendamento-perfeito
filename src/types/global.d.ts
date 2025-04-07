@@ -14,6 +14,18 @@ declare global {
   }
 }
 
+export interface Professional {
+  id: string;
+  name: string;
+  image?: string;
+  role?: string;
+  rating?: number;
+  reviewCount?: number;
+  bio?: string;
+  active?: boolean;
+  available?: boolean;
+}
+
 export interface Service {
   id: string;
   name: string;

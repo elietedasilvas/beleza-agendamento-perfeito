@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { 
   Table, 
@@ -73,8 +72,7 @@ const AppointmentsAdmin = () => {
       .select(`
         *,
         services:service_id (name),
-        professionals:professional_id (id),
-        profiles:professional_id (name)
+        professionals:professional_id (id)
       `);
     
     // Apply date filter if specified
@@ -99,13 +97,21 @@ const AppointmentsAdmin = () => {
       throw error;
     }
     
-    // Fetch client details for each appointment
+    // Fetch client details and professional names for each appointment
     const appointmentsWithDetails = await Promise.all(
       (data || []).map(async (appointment) => {
+        // Fetch client details
         const { data: clientData } = await supabase
           .from("profiles")
           .select("name, phone")
           .eq("id", appointment.client_id)
+          .single();
+        
+        // Fetch professional name
+        const { data: professionalData } = await supabase
+          .from("profiles")
+          .select("name")
+          .eq("id", appointment.professional_id)
           .single();
         
         return {
@@ -113,7 +119,7 @@ const AppointmentsAdmin = () => {
           client_name: clientData?.name || "Cliente não encontrado",
           client_phone: clientData?.phone || "Telefone não cadastrado",
           service_name: appointment.services?.name || "Serviço não encontrado",
-          professional_name: appointment.profiles?.name || "Profissional não encontrado",
+          professional_name: professionalData?.name || "Profissional não encontrado",
         };
       })
     );
@@ -156,18 +162,28 @@ const AppointmentsAdmin = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("professionals")
-        .select(`
-          id, 
-          profiles:id (name)
-        `)
+        .select("id")
         .eq("active", true);
       
       if (error) throw error;
       
-      return data.map(pro => ({
-        id: pro.id,
-        name: pro.profiles?.name || "Nome não encontrado"
-      }));
+      // Fetch professional names separately
+      const professionalsWithNames = await Promise.all(
+        (data || []).map(async (pro) => {
+          const { data: profileData } = await supabase
+            .from("profiles")
+            .select("name")
+            .eq("id", pro.id)
+            .single();
+          
+          return {
+            id: pro.id,
+            name: profileData?.name || "Nome não encontrado"
+          };
+        })
+      );
+      
+      return professionalsWithNames;
     }
   });
   
@@ -201,8 +217,8 @@ const AppointmentsAdmin = () => {
   });
   
   // Function to update appointment status
-  const updateStatus = (id: string, newStatus: string) => {
-    updateStatusMutation.mutate({ id, newStatus });
+  const updateStatus = (id: string, status: string) => {
+    updateStatusMutation.mutate({ id, status });
   };
   
   // Function to get status badge
