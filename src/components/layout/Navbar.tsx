@@ -1,13 +1,16 @@
 
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { Menu, X, User, Calendar } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Menu, X, User, Calendar, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   const navLinks = [
     { name: "Home", path: "/" },
@@ -17,6 +20,11 @@ const Navbar = () => {
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/auth");
   };
 
   return (
@@ -48,19 +56,40 @@ const Navbar = () => {
         </nav>
 
         <div className="flex items-center space-x-4">
-          <Button asChild variant="ghost" size="icon" className="hidden md:flex">
-            <Link to="/profile">
-              <User className="h-5 w-5" />
-              <span className="sr-only">Profile</span>
-            </Link>
-          </Button>
-          
-          <Button asChild className="hidden md:flex beauty-button">
-            <Link to="/booking">
-              <Calendar className="mr-2 h-4 w-4" />
-              Agendar
-            </Link>
-          </Button>
+          {user ? (
+            <>
+              <Button asChild variant="ghost" size="icon" className="hidden md:flex">
+                <Link to="/profile">
+                  <User className="h-5 w-5" />
+                  <span className="sr-only">Profile</span>
+                </Link>
+              </Button>
+              
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="hidden md:flex"
+                onClick={handleLogout}
+              >
+                <LogOut className="h-5 w-5" />
+                <span className="sr-only">Sair</span>
+              </Button>
+              
+              <Button asChild className="hidden md:flex beauty-button">
+                <Link to="/booking">
+                  <Calendar className="mr-2 h-4 w-4" />
+                  Agendar
+                </Link>
+              </Button>
+            </>
+          ) : (
+            <Button asChild variant="secondary" className="hidden md:flex">
+              <Link to="/auth">
+                <User className="mr-2 h-4 w-4" />
+                Entrar
+              </Link>
+            </Button>
+          )}
 
           {/* Mobile Menu Button */}
           <Button variant="ghost" size="icon" className="md:hidden" onClick={toggleMenu}>
@@ -88,20 +117,42 @@ const Navbar = () => {
                 {link.name}
               </Link>
             ))}
-            <Link
-              to="/profile"
-              className="text-sm font-medium transition-colors hover:text-primary p-2 rounded-md flex items-center"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <User className="h-4 w-4 mr-2" />
-              Perfil
-            </Link>
-            <Button asChild className="beauty-button w-full mt-2">
-              <Link to="/booking" onClick={() => setIsMenuOpen(false)}>
-                <Calendar className="mr-2 h-4 w-4" />
-                Agendar Agora
-              </Link>
-            </Button>
+            {user ? (
+              <>
+                <Link
+                  to="/profile"
+                  className="text-sm font-medium transition-colors hover:text-primary p-2 rounded-md flex items-center"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <User className="h-4 w-4 mr-2" />
+                  Perfil
+                </Link>
+                <Button 
+                  variant="ghost"
+                  className="text-sm font-medium transition-colors hover:text-primary p-2 rounded-md flex items-center justify-start"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    handleLogout();
+                  }}
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sair
+                </Button>
+                <Button asChild className="beauty-button w-full mt-2">
+                  <Link to="/booking" onClick={() => setIsMenuOpen(false)}>
+                    <Calendar className="mr-2 h-4 w-4" />
+                    Agendar Agora
+                  </Link>
+                </Button>
+              </>
+            ) : (
+              <Button asChild className="w-full">
+                <Link to="/auth" onClick={() => setIsMenuOpen(false)}>
+                  <User className="mr-2 h-4 w-4" />
+                  Entrar
+                </Link>
+              </Button>
+            )}
           </nav>
         </div>
       )}
