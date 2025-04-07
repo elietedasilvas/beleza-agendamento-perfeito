@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { CalendarDays, Clock, User, Settings, LogOut, Calendar, History, BadgeCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +13,8 @@ import {
 } from "@/components/ui/avatar";
 import { formatCurrency } from "@/data/mockData";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 // Mock user data
 const userData = {
@@ -56,6 +57,8 @@ const mockAppointments = [
 ];
 
 const ProfilePage = () => {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: userData.name,
     email: userData.email,
@@ -72,6 +75,11 @@ const ProfilePage = () => {
       title: "Perfil atualizado",
       description: "Suas informações foram atualizadas com sucesso!",
     });
+  };
+  
+  const handleLogout = async () => {
+    await logout();
+    navigate("/auth");
   };
   
   const handleCancelAppointment = (id: string) => {
@@ -303,6 +311,7 @@ const ProfilePage = () => {
                           type="button" 
                           variant="outline"
                           className="text-destructive hover:text-destructive"
+                          onClick={handleLogout}
                         >
                           <LogOut className="mr-2 h-4 w-4" />
                           Sair
