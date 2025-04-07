@@ -67,6 +67,11 @@ const BookingPage = () => {
     return services.filter(service => professional.services.includes(service.id));
   };
   
+  const getAvailableSlots = (professional: Professional, day: string) => {
+    if (!professional || !professional.schedule) return [];
+    return professional.schedule[day] || [];
+  };
+  
   const availableProfessionals = selectedService
     ? getAvailableProfessionals(selectedService.id)
     : professionals;
@@ -80,7 +85,7 @@ const BookingPage = () => {
       const dayName = format(date, 'EEEE', { locale: ptBR });
       const capitalizedDayName = dayName.charAt(0).toUpperCase() + dayName.slice(1);
       
-      const times = selectedProfessional.availability[capitalizedDayName] || [];
+      const times = selectedProfessional.schedule[capitalizedDayName] || [];
       setAvailableTimes(times);
       setSelectedTime(null);
     } else {

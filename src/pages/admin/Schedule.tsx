@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { 
   Card, 
@@ -61,7 +60,6 @@ const ScheduleAdmin = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   
   useEffect(() => {
-    // Update global state when professionals list changes
     window.updatedProfessionals = professionalsList;
   }, [professionalsList]);
   
@@ -71,13 +69,11 @@ const ScheduleAdmin = () => {
     }
   });
   
-  // Time slots for the schedule
   const timeSlots = [
     "8:00", "9:00", "10:00", "11:00", "12:00", "13:00", 
     "14:00", "15:00", "16:00", "17:00", "18:00", "19:00"
   ];
   
-  // Days of the week
   const daysOfWeek = [
     "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"
   ];
@@ -92,8 +88,7 @@ const ScheduleAdmin = () => {
     
     setSelectedDay(day);
     
-    // Set form values based on the professional's availability for the selected day
-    const dayAvailability = selectedProfessional.availability[day] || [];
+    const dayAvailability = selectedProfessional.schedule[day] || [];
     form.setValue("timeSlots", dayAvailability);
     
     setIsEditDialogOpen(true);
@@ -102,39 +97,31 @@ const ScheduleAdmin = () => {
   const onSubmitTimeSlots = (data: { timeSlots: string[] }) => {
     if (!selectedProfessional || !selectedDay) return;
     
-    // Create a copy of the professional
     const updatedProfessional = { ...selectedProfessional };
     
-    // Update availability for the selected day
-    updatedProfessional.availability = { 
-      ...updatedProfessional.availability,
+    updatedProfessional.schedule = { 
+      ...updatedProfessional.schedule,
       [selectedDay]: data.timeSlots
     };
     
-    // Update the professionals list
     setProfessionalsList(professionalsList.map(p => 
       p.id === selectedProfessional.id ? updatedProfessional : p
     ));
     
-    // Update the selected professional
     setSelectedProfessional(updatedProfessional);
     
-    // Close the dialog
     setIsEditDialogOpen(false);
     
-    // Show success toast
     toast({
       title: "Agenda atualizada",
       description: `Horários de ${selectedDay} para ${selectedProfessional.name} atualizados com sucesso.`,
     });
   };
   
-  // Function to get available time slots for a specific day
   const getAvailableTimeSlots = (professional: Professional, day: string) => {
-    return professional.availability[day] || [];
+    return professional.schedule[day] || [];
   };
   
-  // Check if a time slot is available for a professional on a specific day
   const isTimeSlotAvailable = (professional: Professional, day: string, timeSlot: string) => {
     const availableSlots = getAvailableTimeSlots(professional, day);
     return availableSlots.includes(timeSlot);

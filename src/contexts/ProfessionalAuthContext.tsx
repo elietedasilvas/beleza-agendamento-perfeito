@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { professionals } from "@/data/mockData";
 import { toast } from "@/hooks/use-toast";
@@ -31,11 +32,14 @@ export const ProfessionalAuthProvider: React.FC<{ children: React.ReactNode }> =
   }, [professionalAuth]);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Em um ambiente real, isso seria uma chamada de API segura
-    // Para fins de demonstração, estamos usando email como identificador
-    const professional = professionals.find(p => p.email === email);
+    // Obter a lista atualizada de profissionais, se disponível
+    const currentProfessionals = window.updatedProfessionals || professionals;
     
-    if (professional && password === "senha123") { // Senha simulada, em produção use hash
+    // Procurar o profissional pelo email
+    const professional = currentProfessionals.find(p => p.email === email);
+    
+    // Verificar credenciais (em produção seria com hash, aqui usamos senha fixa)
+    if (professional && password === "senha123") {
       setProfessionalAuth({
         id: professional.id,
         name: professional.name,
