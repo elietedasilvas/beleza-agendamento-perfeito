@@ -120,12 +120,44 @@ const ReviewsAdminPage = () => {
   // Aprovar avaliação
   const handleApproveReview = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from("reviews")
-        .update({ status: "approved", updated_at: new Date().toISOString() })
-        .eq("id", id);
+      console.log(`Tentando aprovar avaliação com ID: ${id}`);
 
-      if (error) throw error;
+      // Primeiro, verificar se a avaliação existe
+      const { data: reviewData, error: fetchError } = await supabase
+        .from("reviews")
+        .select("id")
+        .eq("id", id)
+        .single();
+
+      if (fetchError) {
+        console.error("Erro ao buscar avaliação:", fetchError);
+        throw new Error(`Avaliação não encontrada: ${fetchError.message}`);
+      }
+
+      // Tentar atualizar usando RPC para evitar problemas de cache
+      const { error: rpcError } = await supabase.rpc('update_review_status', {
+        review_id: id,
+        new_status: 'approved'
+      }).maybeSingle();
+
+      // Se a função RPC não existir, criar a função e tentar novamente com o método padrão
+      if (rpcError && rpcError.message.includes('does not exist')) {
+        console.log('Função RPC não existe, usando método padrão');
+
+        // Atualizar usando o método padrão
+        const { error } = await supabase
+          .from("reviews")
+          .update({ status: "approved", updated_at: new Date().toISOString() })
+          .eq("id", id);
+
+        if (error) {
+          console.error("Erro ao aprovar avaliação:", error);
+          throw error;
+        }
+      } else if (rpcError) {
+        console.error("Erro ao aprovar avaliação via RPC:", rpcError);
+        throw rpcError;
+      }
 
       // Atualizar a lista localmente
       setReviews((prev) =>
@@ -139,6 +171,7 @@ const ReviewsAdminPage = () => {
         description: "A avaliação foi aprovada com sucesso.",
       });
     } catch (error: any) {
+      console.error("Erro completo ao aprovar avaliação:", error);
       toast({
         title: "Erro ao aprovar avaliação",
         description: error.message,
@@ -150,12 +183,44 @@ const ReviewsAdminPage = () => {
   // Rejeitar avaliação
   const handleRejectReview = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from("reviews")
-        .update({ status: "rejected", updated_at: new Date().toISOString() })
-        .eq("id", id);
+      console.log(`Tentando rejeitar avaliação com ID: ${id}`);
 
-      if (error) throw error;
+      // Primeiro, verificar se a avaliação existe
+      const { data: reviewData, error: fetchError } = await supabase
+        .from("reviews")
+        .select("id")
+        .eq("id", id)
+        .single();
+
+      if (fetchError) {
+        console.error("Erro ao buscar avaliação:", fetchError);
+        throw new Error(`Avaliação não encontrada: ${fetchError.message}`);
+      }
+
+      // Tentar atualizar usando RPC para evitar problemas de cache
+      const { error: rpcError } = await supabase.rpc('update_review_status', {
+        review_id: id,
+        new_status: 'rejected'
+      }).maybeSingle();
+
+      // Se a função RPC não existir, criar a função e tentar novamente com o método padrão
+      if (rpcError && rpcError.message.includes('does not exist')) {
+        console.log('Função RPC não existe, usando método padrão');
+
+        // Atualizar usando o método padrão
+        const { error } = await supabase
+          .from("reviews")
+          .update({ status: "rejected", updated_at: new Date().toISOString() })
+          .eq("id", id);
+
+        if (error) {
+          console.error("Erro ao rejeitar avaliação:", error);
+          throw error;
+        }
+      } else if (rpcError) {
+        console.error("Erro ao rejeitar avaliação via RPC:", rpcError);
+        throw rpcError;
+      }
 
       // Atualizar a lista localmente
       setReviews((prev) =>
@@ -169,6 +234,7 @@ const ReviewsAdminPage = () => {
         description: "A avaliação foi rejeitada com sucesso.",
       });
     } catch (error: any) {
+      console.error("Erro completo ao rejeitar avaliação:", error);
       toast({
         title: "Erro ao rejeitar avaliação",
         description: error.message,
