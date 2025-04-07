@@ -2,8 +2,10 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { Database } from "@/integrations/supabase/types";
 
 type UserRole = "admin" | "professional" | "client";
+type ProfilesResponse = Database["public"]["Tables"]["profiles"]["Row"];
 
 export const useRole = () => {
   const { user } = useAuth();
@@ -28,7 +30,7 @@ export const useRole = () => {
         if (error) {
           console.error("Error fetching user role:", error);
           setRole(null);
-        } else {
+        } else if (data) {
           setRole(data.role as UserRole);
         }
       } catch (error) {
