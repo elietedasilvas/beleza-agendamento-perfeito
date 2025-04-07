@@ -207,7 +207,7 @@ const ProfilePage = () => {
           .select(`
             *,
             service:service_id(name, price),
-            professional:professional_id(profiles(name))
+            professional:professional_id(id)
           `)
           .eq('client_id', user.id)
           .order('date', { ascending: true })
@@ -215,11 +215,32 @@ const ProfilePage = () => {
 
         if (error) throw error;
 
+        // Buscar informações dos profissionais
+        const professionalIds = data.map((app: any) => app.professional_id).filter(Boolean);
+
+        // Se houver profissionais, buscar seus nomes
+        let professionalNames: Record<string, string> = {};
+
+        if (professionalIds.length > 0) {
+          const { data: profilesData, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, name')
+            .in('id', professionalIds);
+
+          if (!profilesError && profilesData) {
+            // Criar um mapa de id -> nome
+            professionalNames = profilesData.reduce((acc: Record<string, string>, profile: any) => {
+              acc[profile.id] = profile.name;
+              return acc;
+            }, {});
+          }
+        }
+
         // Formatar os dados para o formato esperado
         const formattedAppointments = data.map((appointment: any) => ({
           ...appointment,
           professional: {
-            name: appointment.professional?.profiles?.[0]?.name || 'Profissional'
+            name: professionalNames[appointment.professional_id] || 'Profissional'
           }
         }));
 
