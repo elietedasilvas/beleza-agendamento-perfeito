@@ -3,7 +3,6 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, User } from "lucide-react";
-import { Professional } from "@/types/global.d";
 
 interface ProfessionalSelectorProps {
   professionalsList: {
