@@ -6,4 +6,10 @@ declare global {
     updatedServices?: Service[];
     updatedProfessionals?: Professional[];
   }
+  
+  interface ProfessionalCredentials {
+    id: string;
+    email: string;
+    name: string;
+  }
 }
